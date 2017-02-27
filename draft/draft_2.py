@@ -11,7 +11,7 @@ class Node(object):
         pass
 
     @abstractmethod
-    def backward(self):
+    def backward(self, d_out):
         pass
 
     @abstractmethod
