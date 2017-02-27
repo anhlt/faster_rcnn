@@ -1,0 +1,16 @@
+{
+	"folders":
+	[
+		{
+			"path": "."
+		}
+	],
+    "settings":
+    {
+        "python_interpreter": "tcp://localhost:19360?pathmap=./,/data",
+        "anaconda_linting": true,
+        "anaconda_linting_behaviour": "always",
+        "use_pylint": false,
+        "validate_imports": true
+    }
+}

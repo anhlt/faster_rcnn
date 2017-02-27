@@ -1,0 +1,2 @@
+docker build -t tuananhbk/mlpractice  .
+docker run -t -i -v $PWD/:/data tuananhbk/mlpractice  /bin/bash
