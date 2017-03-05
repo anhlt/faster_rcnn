@@ -1,0 +1,1 @@
+draft\cifar-10-batches-py\data_* filter=lfs diff=lfs merge=lfs -text
