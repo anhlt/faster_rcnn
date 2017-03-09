@@ -6,4 +6,4 @@ docker-compose\.yml
 src/backend/main-DESKTOP-3SLE31I\.py
 ml-practice.sublime-project
 ml-practice.sublime-workspace
-
+*.pyc
