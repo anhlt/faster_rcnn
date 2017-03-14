@@ -8,6 +8,9 @@ from torch.nn.parameter import Parameter
 class AffineFunction(Function):
 
     def forward(self, input, weight, bias):
+        """
+            Computes the forward pass for an affine (fully-connected) layer.
+        """
         self.save_for_backward(input, weight, bias)
         input = input.numpy()
         weight = weight.numpy()
@@ -16,6 +19,9 @@ class AffineFunction(Function):
         return torch.FloatTensor(out)
 
     def backward(self, grad_output):
+        """
+            Computes the backward pass for an affine layer.
+        """
         input, weight, bias = self.saved_tensors
         input = input.numpy()
         weight = weight.numpy()
