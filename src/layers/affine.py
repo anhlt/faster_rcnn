@@ -43,14 +43,14 @@ class Affine(Module):
             np.random.uniform(
                 low=-np.sqrt(6. / (n_in + n_out)),
                 high=np.sqrt(6. / (n_in + n_out)),
-                size=(n_in, n_out))
+                size=(n_in, n_out)).astype(np.float32)
         ))
 
         self.bias = Parameter(torch.from_numpy(
             np.random.uniform(
                 low=-np.sqrt(6. / (n_in + n_out)),
                 high=np.sqrt(6. / (n_in + n_out)),
-                size=(n_out, ))
+                size=(n_out, )).astype(np.float32)
         ))
 
     def forward(self, input):
