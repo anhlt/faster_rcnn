@@ -26,7 +26,7 @@ class AffineFunction(Function):
         input = input.numpy()
         weight = weight.numpy()
         bias = bias.numpy()
-
+        grad_output = grad_output.numpy()
         grad_input = grad_output.dot(weight.T).reshape(input.shape)
         grad_weight = input.reshape(input.shape[0], -1).T.dot(grad_output)
         grad_bias = np.sum(grad_output, axis=0)
