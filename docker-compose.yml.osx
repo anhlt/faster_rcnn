@@ -17,7 +17,5 @@ services:
         depends_on:
             - web
         user: root
-        command: pip install MyPy
-        command: touch /root/.local/share/anaconda/logs/docker/anaconda_jsonserver.log
         entrypoint: /opt/anaconda/anaconda_server/docker/start python 19360 docker /opt/anaconda
         tty: true

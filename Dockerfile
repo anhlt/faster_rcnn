@@ -2,7 +2,6 @@ FROM continuumio/anaconda
 RUN apt-get -y update && apt-get install -y g++ gcc gfortran build-essential git libopenblas-dev
 RUN conda install python -y
 RUN conda install seaborn -y
-RUN conda install pyqt=4.10.4 -y
 RUN conda install pytorch torchvision -c soumith -y
 RUN conda install opencv -y
 
@@ -12,6 +11,9 @@ WORKDIR coco/PythonAPI
 RUN python setup.py install
 
 VOLUME ["/data"]
+
+RUN mkdir -p /root/.local/share/anaconda/logs/docker/
+RUN touch /root/.local/share/anaconda/logs/docker/anaconda_jsonserver.lo
 
 ADD ./requirements.txt /tmp/requirements.txt
 WORKDIR /tmp/
