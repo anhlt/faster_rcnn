@@ -2,3 +2,4 @@ seaborn==0.7.1
 scikit-learn
 jupyter
 easydict==1.7
+joblib
