@@ -27,10 +27,8 @@ RUN conda install -y --name pytorch  pytorch torchvision cuda80 -c soumith
 WORKDIR /opt/pytorch
 
 RUN apt-get -y update && apt-get install -y g++ gcc gfortran build-essential git libopenblas-dev
-RUN conda install seaborn -y
-RUN conda install opencv -y
+RUN conda install -y --name pytorch seaborn opencv cython
 
-RUN pip install cython
 WORKDIR /tmp/
 RUN git clone https://github.com/pdollar/coco
 WORKDIR coco/PythonAPI
