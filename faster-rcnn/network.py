@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+from torchvision.models.vgg import vgg16 as _vgg16
 
 
 class Conv2d(nn.Module):
@@ -54,4 +55,11 @@ class FC(nn.Module):
         return x
 
 
+def vgg16():
+    full_model = _vgg16(pretrained=True)
+    feature_model = full_model.features
+    for name, module in feature_model.named_children():
+        for param in module.parameters():
+            param.requires_grad = False
 
+    return feature_model
