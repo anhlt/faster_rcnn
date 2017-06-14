@@ -5,15 +5,13 @@
 # Written by Ross Girshick and Sean Bell
 # --------------------------------------------------------
 
-import os
-import yaml
 import numpy as np
 import numpy.random as npr
 
 from .generate_anchors import generate_anchors
 from ..utils.cython_bbox import bbox_overlaps, bbox_intersections
 
-from ..lib.bbox_transform import bbox_transform
+from ..fastcnn.bbox_transform import bbox_transform
 from ..config import cfg
 
 DEBUG = False
@@ -307,4 +305,7 @@ def _compute_targets(ex_rois, gt_rois):
     assert ex_rois.shape[1] == 4
     assert gt_rois.shape[1] == 5
 
-    return bbox_transform(ex_rois, gt_rois[:, :4]).astype(np.float32, copy=False)
+    return bbox_transform(ex_rois,
+                          gt_rois[:, :4]).astype(
+        np.float32,
+        copy=False)

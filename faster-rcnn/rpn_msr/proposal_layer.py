@@ -6,15 +6,13 @@
 # --------------------------------------------------------
 
 import numpy as np
-import yaml
 
 from .generate_anchors import generate_anchors
 
-# TODO: make fast_rcnn irrelevant
-# >>>> obsolete, because it depends on sth outside of this project
-from ..fast_rcnn.config import cfg
-from ..fast_rcnn.bbox_transform import bbox_transform_inv, clip_boxes
-from ..fast_rcnn.nms_wrapper import nms
+from ..fastcnn.nms_wrapper import nms
+from ..fastcnn.bbox_transform import bbox_transform_inv, clip_boxes
+from ..config import cfg
+
 
 # <<<< obsolete
 
@@ -61,7 +59,8 @@ def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_
     _anchors = generate_anchors(scales=np.array(anchor_scales))
     _num_anchors = _anchors.shape[0]
     # rpn_cls_prob_reshape = np.transpose(rpn_cls_prob_reshape,[0,3,1,2]) #-> (1 , 2xA, H , W)
-    # rpn_bbox_pred = np.transpose(rpn_bbox_pred,[0,3,1,2])              # -> (1 , Ax4, H , W)
+    # rpn_bbox_pred = np.transpose(rpn_bbox_pred,[0,3,1,2])              # ->
+    # (1 , Ax4, H , W)
 
     # rpn_cls_prob_reshape = np.transpose(np.reshape(rpn_cls_prob_reshape,[1,rpn_cls_prob_reshape.shape[0],rpn_cls_prob_reshape.shape[1],rpn_cls_prob_reshape.shape[2]]),[0,3,2,1])
     # rpn_bbox_pred = np.transpose(rpn_bbox_pred,[0,3,2,1])
@@ -108,7 +107,7 @@ def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_
     A = _num_anchors
     K = shifts.shape[0]
     anchors = _anchors.reshape((1, A, 4)) + \
-              shifts.reshape((1, K, 4)).transpose((1, 0, 2))
+        shifts.reshape((1, K, 4)).transpose((1, 0, 2))
     anchors = anchors.reshape((K * A, 4))
 
     # Transpose and reshape predicted bbox transformations to get them
