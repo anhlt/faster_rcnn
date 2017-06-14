@@ -6,7 +6,7 @@
 # --------------------------------------------------------
 
 import numpy as np
-from sympy.physics.paulialgebra import delta
+# from sympy.physics.paulialgebra import delta
 
 
 def bbox_transform(ex_rois, gt_rois):

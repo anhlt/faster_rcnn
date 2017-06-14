@@ -9,12 +9,9 @@ import numpy as np
 
 from .generate_anchors import generate_anchors
 
-from ..fastcnn.nms_wrapper import nms
-from ..fastcnn.bbox_transform import bbox_transform_inv, clip_boxes
+from ..fastrcnn.nms_wrapper import nms
+from ..fastrcnn.bbox_transform import bbox_transform_inv, clip_boxes
 from ..config import cfg
-
-
-# <<<< obsolete
 
 
 DEBUG = False

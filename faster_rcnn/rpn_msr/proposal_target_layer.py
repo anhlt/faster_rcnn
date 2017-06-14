@@ -5,20 +5,13 @@
 # Written by Ross Girshick and Sean Bell
 # --------------------------------------------------------
 
-import yaml
 import numpy as np
 import numpy.random as npr
-import pdb
 
 from ..utils.cython_bbox import bbox_overlaps, bbox_intersections
 
-# TODO: make fast_rcnn irrelevant
-# >>>> obsolete, because it depends on sth outside of this project
-from ..fast_rcnn.config import cfg
-from ..fast_rcnn.bbox_transform import bbox_transform
-
-# <<<< obsolete
-
+from ..config import cfg
+from ..fastrcnn.bbox_transform import bbox_transform
 DEBUG = False
 
 

@@ -11,7 +11,7 @@ import numpy.random as npr
 from .generate_anchors import generate_anchors
 from ..utils.cython_bbox import bbox_overlaps, bbox_intersections
 
-from ..fastcnn.bbox_transform import bbox_transform
+from ..fastrcnn.bbox_transform import bbox_transform
 from ..config import cfg
 
 DEBUG = False
