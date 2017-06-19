@@ -10,7 +10,6 @@ RUN git clone https://github.com/pdollar/coco
 WORKDIR coco/PythonAPI
 RUN python setup.py install
 
-VOLUME ["/data"]
 
 RUN mkdir -p /root/.local/share/anaconda/logs/docker/
 RUN touch /root/.local/share/anaconda/logs/docker/anaconda_jsonserver.lo
