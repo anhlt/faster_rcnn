@@ -1,0 +1,27 @@
+version: '2'
+services:
+    python:
+        build:
+            context: .
+            dockerfile: Dockerfile.gpu
+        image: "tuananhbk/mlpractice:gpu" 
+        ports:
+            - "8081:8081"
+        volumes:
+            - ".:/data"
+        user: anh
+        working_dir: /data
+        tty: true
+        command: jupyter notebook --ip=0.0.0.0 --port=8081
+    anaconda:
+        image: "tuananhbk/mlpractice:gpu" 
+        ports:
+            - "19361:19361"
+        volumes:
+            - /home/anh/.config/sublime-text-3/Packages/Anaconda:/opt/anaconda
+            - ".:/data" 
+        depends_on:
+            - python
+        user: root
+        entrypoint: /opt/anaconda/anaconda_server/docker/start python 19361 docker /opt/anaconda
+        tty: true
