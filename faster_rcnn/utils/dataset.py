@@ -2,12 +2,18 @@ from torchvision.datasets import CocoDetection
 from PIL import Image
 import os
 import numpy as np
+from .blob import im_list_to_blob, prep_im_for_blob
+import cv2
+from ..rpn_msr.generate import _get_image_blob
+from ..config import cfg
 
 
 class CocoData(CocoDetection):
     def __init__(self, root, annFile, transform=None, target_transform=None):
         super(CocoData, self).__init__(
             root, annFile, transform, target_transform)
+
+        self.root = root
         cats = self.coco.loadCats(self.coco.getCatIds())
         self._classes = tuple(['__background__'] +
                               [cat['name'] for cat in cats])
@@ -40,6 +46,11 @@ class CocoData(CocoDetection):
         ann_id = coco.getAnnIds(imgIds=img_id)
         annotation = coco.loadAnns(ann_id)
         image_info = coco.loadImgs(img_id)[0]
+        im_file_path = os.path.join(self.root, image_info['file_name'])
+        im_blob, im_info = _get_image_blob(cv2.imread(im_file_path))
+        blobs = {'data': im_blob}
+        blobs['im_name'] = os.path.basename(im_file_path)
+
         width = image_info['width']
         height = image_info['height']
         coco_cat_id_to_class_index = dict([(self._class_to_coco_cat_id[
@@ -58,37 +69,21 @@ class CocoData(CocoDetection):
                     yield [x1, y1, x2, y2, class_index]
 
         objects = [box for box in bboxs(annotation)]
+        blobs['gt_boxes'] = objects
         num_objs = len(objects)
-        overlaps = np.zeros((num_objs, self.num_classes), dtype=np.float32)
+        overlaps = np.zeros((num_objs, len(self.classes)), dtype=np.float32)
         seg_areas = np.zeros((num_objs), dtype=np.float32)
 
-        for index, obj in annotation:
-            seg_areas[index] = annotation['area']
+        for index, obj in enumerate(annotation):
+            seg_areas[index] = obj['area']
             if obj['iscrowd']:
                 overlaps[index, :] = -1.0
             else:
                 class_index = coco_cat_id_to_class_index[obj['category_id']]
                 overlaps[index, class_index] = 1.0
 
-        
+        blobs['gt_ishard'] = np.zeros(len(objects))
+        blobs['dontcare_areas'] = np.zeros([0, 4], dtype=np.float)
+        blobs['im_info'] = np.array(im_info, dtype=np.float32)
 
-        path = coco.loadImgs(img_id)[0]['file_name']
-        img = Image.open(os.path.join(self.root, path)).convert('RGB')
-        if self.transform is not None:
-            img = self.transform(img)
-
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-
-        return img, anns
-
-
-def prepare_roidb(imdb):
-    # cache file
-
-    roidb = imdb.roidb
-    for i in xrange(len(imdb.image_index)):
-        roidb[i]['image'] = 'load path'
-        boxes = roidb[i]['boxes']
-        labels = roidb[i]['gt_classes']
-        info_boxes = np.zeros((0, 18), dtype=np.float32)
+        return blobs

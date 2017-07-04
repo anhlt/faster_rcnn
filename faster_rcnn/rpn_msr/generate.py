@@ -14,7 +14,7 @@ from ..utils.timer import Timer
 
 # TODO: make fast_rcnn irrelevant
 # >>>> obsolete, because it depends on sth outside of this project
-from ..fast_rcnn.config import cfg
+from ..config import cfg
 # <<<< obsolete
 
 
@@ -67,7 +67,7 @@ def _get_image_blob(im):
 
     processed_ims = []
 
-    assert len(cfg.TEST.SCALES_BASE) == 1
+    # assert len(cfg.TEST.SCALES_BASE) == 1
     im_scale = cfg.TRAIN.SCALES_BASE[0]
 
     im = cv2.resize(im_orig, None, None, fx=im_scale, fy=im_scale,

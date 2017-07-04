@@ -212,6 +212,7 @@ __C.TEST.RPN_MIN_SIZE = 16
 #
 # MISC
 #
+__C.TEST.SCALES_BASE = (1.0,)
 
 # The mapping from image coordinates to feature map coordinates might cause
 # some boxes that are distinct in image space to become identical in feature
