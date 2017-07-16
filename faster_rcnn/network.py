@@ -28,12 +28,13 @@ class Conv2d(nn.Module):
 
         self.relu = nn.ReLU(inplace=True) if relu else None
 
-        def forward(self, x):
-            x = self.conv(x)
-            if self.bn is not None:
-                x = self.bn(x)
-            if self.relu is not None:
-                x = self.relu(x)
+    def forward(self, x):
+        x = self.conv(x)
+        if self.bn is not None:
+            x = self.bn(x)
+        if self.relu is not None:
+            x = self.relu(x)
+        return x
 
 
 class FC(nn.Module):
@@ -63,6 +64,7 @@ def vgg16():
             param.requires_grad = False
 
     return feature_model
+
 
 def np_to_variable(x, is_cuda=True, dtype=torch.FloatTensor):
     v = Variable(torch.from_numpy(x).type(dtype))

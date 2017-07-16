@@ -1,18 +1,11 @@
-import cv2
-import numpy as numpy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
-from .utils.timer import Timer
-from .utils.blob import im_list_to_blob
 
-from .fastrcnn.nms_wrapper import nms
 from .rpn_msr.proposal_layer import proposal_layer as proposal_layer_py
 from .rpn_msr.anchor_target_layer import anchor_target_layer as anchor_target_layer_py
-from .rpn_msr.proposal_target_layer import proposal_target_layer as proposal_target_layer_py
-from .fastrcnn.bbox_transform import bbox_transform_inv, clip_boxes
 from .network import vgg16, Conv2d, np_to_variable
 
 
@@ -63,6 +56,7 @@ class RPN(nn.Module):
 
         if self.training:
             assert gt_boxes is not None
+            # list GT boxes
             rpn_data = self.anchor_target_layer(rpn_cls_score, gt_boxes,
                                                 gt_ishard,
                                                 dontcare_areas,
@@ -74,33 +68,33 @@ class RPN(nn.Module):
 
         return features, rois
 
-        def build_loss(self, rpn_cls_score_reshape, rpn_bbox_pred, rpn_data):
-            # classification loss
-            rpn_cls_score = rpn_cls_score_reshape.permute(
-                0, 2, 3, 1).contiguous().view(-1, 2)
-            rpn_label = rpn_data[0].view(-1)
+    def build_loss(self, rpn_cls_score_reshape, rpn_bbox_pred, rpn_data):
+        # classification loss
+        rpn_cls_score = rpn_cls_score_reshape.permute(
+            0, 2, 3, 1).contiguous().view(-1, 2)
+        rpn_label = rpn_data[0].view(-1)
 
-            rpn_keep = Variable(
-                rpn_label.data.ne(-1).nonzero().squeeze()).cuda()
-            rpn_cls_score = torch.index_select(rpn_cls_score, 0, rpn_keep)
-            rpn_label = torch.index_select(rpn_label, 0, rpn_keep)
+        rpn_keep = Variable(
+            rpn_label.data.ne(-1).nonzero().squeeze()).cuda()
+        rpn_cls_score = torch.index_select(rpn_cls_score, 0, rpn_keep)
+        rpn_label = torch.index_select(rpn_label, 0, rpn_keep)
 
-            fg_cnt = torch.sum(rpn_label.data.ne(0))
+        fg_cnt = torch.sum(rpn_label.data.ne(0))
 
-            rpn_cross_entropy = F.cross_entropy(rpn_cls_score, rpn_label)
+        rpn_cross_entropy = F.cross_entropy(rpn_cls_score, rpn_label)
 
-            # box loss
-            rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights = rpn_data[
-                1:]
+        # box loss
+        rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights = rpn_data[
+            1:]
 
-            rpn_bbox_targets = torch.mul(
-                rpn_bbox_targets, rpn_bbox_inside_weights)
-            rpn_bbox_pred = torch.mul(rpn_bbox_pred, rpn_bbox_inside_weights)
+        rpn_bbox_targets = torch.mul(
+            rpn_bbox_targets, rpn_bbox_inside_weights)
+        rpn_bbox_pred = torch.mul(rpn_bbox_pred, rpn_bbox_inside_weights)
 
-            rpn_loss_box = F.smooth_l1_loss(
-                rpn_bbox_pred, rpn_bbox_targets, size_average=False) / (fg_cnt + 1e-4)
+        rpn_loss_box = F.smooth_l1_loss(
+            rpn_bbox_pred, rpn_bbox_targets, size_average=False) / (fg_cnt + 1e-4)
 
-            return rpn_cross_entropy, rpn_loss_box
+        return rpn_cross_entropy, rpn_loss_box
 
     @staticmethod
     def reshape_layer(x, d):
