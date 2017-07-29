@@ -4,6 +4,12 @@ import numpy as np
 from .blob import im_list_to_blob, prep_im_for_blob
 import cv2
 from ..config import cfg
+import scipy.io as io
+import scipy
+from .ds_utils import unique_boxes, filter_small_boxes, validate_boxes
+import logging
+from ..utils.cython_bbox import bbox_overlaps
+logger = logging.getLogger(__name__)
 
 
 def _get_image_blob(im):
@@ -28,10 +34,17 @@ def _get_image_blob(im):
 
 
 class CocoData(CocoDetection):
-    def __init__(self, root, annFile, transform=None, target_transform=None):
+    def __init__(self, root, annFile, pre_proposal_folder=None, transform=None, target_transform=None):
         super(CocoData, self).__init__(
             root, annFile, transform, target_transform)
 
+        self.pre_proposal_folder = pre_proposal_folder
+        self._data_name = 'train2014'
+        self.config = {'top_k': 2000,
+                       'use_salt': True,
+                       'cleanup': True,
+                       'crowd_thresh': 0.7,
+                       'min_size': 2}
         self.root = root
         cats = self.coco.loadCats(self.coco.getCatIds())
         self._classes = tuple(['__background__'] +
@@ -40,6 +53,15 @@ class CocoData(CocoDetection):
             zip(self.classes, xrange(len(self.classes))))
         self._class_to_coco_cat_id = dict(zip([c['name'] for c in cats],
                                               self.coco.getCatIds()))
+        self._coco_cat_id_to_class_index = dict([(self._class_to_coco_cat_id[
+            class_name], self._class_to_index[class_name]) for class_name in self._classes[1:]])
+
+    def _get_box_file(self, index):
+        # first 14 chars / first 22 chars / all chars + .mat
+        # COCO_val2014_0/COCO_val2014_000000447/COCO_val2014_000000447991.mat
+        file_name = ('COCO_' + self._data_name +
+                     '_' + str(index).zfill(12) + '.mat')
+        return os.path.join(file_name[:14], file_name[:22], file_name)
 
     @property
     def classes(self):
@@ -47,11 +69,6 @@ class CocoData(CocoDetection):
 
     def _load_image_set_index(self):
         return self.coco.getImgIds()
-
-    # def _get_widths(self):
-    #     anns = self._COCO.loadImgs(self._image_index)
-    #     widths = [ann['width'] for ann in anns]
-    #     return widths
 
     def __getitem__(self, index):
         """
@@ -66,44 +83,77 @@ class CocoData(CocoDetection):
         annotation = coco.loadAnns(ann_id)
         image_info = coco.loadImgs(img_id)[0]
         im_file_path = os.path.join(self.root, image_info['file_name'])
+        width = image_info['width']
+        height = image_info['height']
         # need to fixed
         im_blob, im_info = _get_image_blob(cv2.imread(im_file_path))
         blobs = {'data': im_blob}
         blobs['im_name'] = os.path.basename(im_file_path)
 
-        width = image_info['width']
-        height = image_info['height']
-        coco_cat_id_to_class_index = dict([(self._class_to_coco_cat_id[
-                                          class_name], self._class_to_index[class_name]) for class_name in self._classes[1:]])
-
         # The standard in computer vision is to specify the top left corner and the bottom right corner.
-        # The coordinates are parsed by <your_dataset.py> (for example coco.py) in the function
+        # The coordinates are parsed by <your_dataset.py> (for example coco.py)
+        # in the function
+
         def bboxs(targets):
             for target in targets:
+                overlap = [0] * len(self.classes)
                 x1 = np.max((0, target['bbox'][0]))
                 y1 = np.max((0, target['bbox'][1]))
-                x2 = np.min((width - 1, x1 + np.max((0, target['bbox'][2] - 1))))
-                y2 = np.min((height - 1, y1 + np.max((0, target['bbox'][3] - 1))))
-                class_index = coco_cat_id_to_class_index[target['category_id']]
+                x2 = np.min(
+                    (width - 1, x1 + np.max((0, target['bbox'][2] - 1))))
+                y2 = np.min(
+                    (height - 1, y1 + np.max((0, target['bbox'][3] - 1))))
+                class_index = self._coco_cat_id_to_class_index[
+                    target['category_id']]
+                if target['iscrowd']:
+                    overlap[:] = -1.0
+                else:
+                    overlap[class_index] = 1.0
                 if target['area'] > 0 and x2 >= x1 and y2 >= y1:
-                    yield [x1, y1, x2, y2, class_index]
+                    yield [x1, y1, x2, y2], class_index, target['area'], overlap
 
-        objects = [box for box in bboxs(annotation)]
-        blobs['gt_boxes'] = np.array(objects)
-        num_objs = len(objects)
-        overlaps = np.zeros((num_objs, len(self.classes)), dtype=np.float32)
-        seg_areas = np.zeros((num_objs), dtype=np.float32)
+        gt_boxes, gt_classes, gt_seg_areas, gt_overlaps = zip(
+            *[box for box in bboxs(annotation)])
 
-        for index, obj in enumerate(annotation):
-            seg_areas[index] = obj['area']
-            if obj['iscrowd']:
-                overlaps[index, :] = -1.0
-            else:
-                class_index = coco_cat_id_to_class_index[obj['category_id']]
-                overlaps[index, class_index] = 1.0
+        gt_boxes = np.array(gt_boxes, dtype=np.uint16)
+        gt_classes = np.array(gt_classes, dtype=np.int32)
+        gt_overlaps = np.array(gt_overlaps, dtype=np.float32)
+        gt_seg_areas = np.array(gt_seg_areas, dtype=np.float32)
 
-        blobs['gt_ishard'] = np.zeros(len(objects))
+        # load pre-computed proposal boxes
+        if self.pre_proposal_folder:
+            box_file = os.path.join(
+                self.pre_proposal_folder, 'mat', self._get_box_file(img_id))
+            raw_data = io.loadmat(box_file)['boxes']
+            boxes = np.maximum(raw_data - 1, 0).astype(np.uint16)
+            boxes = boxes[:, (1, 0, 3, 2)]
+            keep = unique_boxes(boxes)
+            boxes = boxes[keep, :]
+            keep = filter_small_boxes(boxes, self.config['min_size'])
+            boxes = boxes[keep, :]
+            boxes = boxes[:self.config['top_k'], :]
+            validate_boxes(boxes, width=width, height=height)
+
+            box_overlaps = np.zeros((boxes.shape[0], len(self.classes)))
+            box_classes = np.zeros((boxes.shape[0],), dtype=np.int32)
+            box_seg_areas = np.zeros((boxes.shape[0],), dtype=np.float32)
+            overlaps_with_gt = bbox_overlaps(boxes.astype(np.float),
+                                             gt_boxes.astype(np.float))
+            argmaxes = overlaps_with_gt.argmax(axis=1)
+            maxes = overlaps_with_gt.max(axis=1)
+            i = np.where(maxes > 0)[0]
+            box_overlaps[i, gt_classes[argmaxes[i]]] = maxes[i]
+
+            gt_boxes = np.vstack([gt_boxes, boxes])
+            gt_classes = np.hstack([gt_classes, box_classes])
+            gt_overlaps = np.vstack([gt_overlaps, box_overlaps])
+            gt_seg_areas = np.hstack([gt_seg_areas, box_seg_areas])
+
+        blobs['gt_ishard'] = np.zeros(len(gt_boxes))
+        blobs['gt_classes'] = gt_classes
+        blobs['gt_overlaps'] = scipy.sparse.csr_matrix(gt_overlaps)
+        blobs['boxes'] = gt_boxes
+        blobs['flipped'] = False
         blobs['dontcare_areas'] = np.zeros([0, 4], dtype=np.float)
         blobs['im_info'] = np.array(im_info, dtype=np.float32)
-
         return blobs
