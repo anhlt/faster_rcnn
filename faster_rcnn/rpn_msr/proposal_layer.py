@@ -14,7 +14,7 @@ from ..fastrcnn.bbox_transform import bbox_transform_inv, clip_boxes
 from ..config import cfg
 
 
-DEBUG = True
+DEBUG = False
 """
 Outputs object detection proposals by applying estimated bounding-box
 transformations to a set of regular boxes (called "anchors").

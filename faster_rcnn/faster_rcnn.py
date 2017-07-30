@@ -9,7 +9,7 @@ from rpn_msr.proposal_target_layer import proposal_target_layer as proposal_targ
 from .network import vgg16, Conv2d, np_to_variable, FC
 from roi_pooling.modules.roi_pool import RoIPool
 from .fastrcnn.bbox_transform import bbox_transform_inv, clip_boxes
-from .fast_rcnn.nms_wrapper import nms
+from .fastrcnn.nms_wrapper import nms
 from .utils.blob import im_list_to_blob
 import cv2
 
@@ -228,6 +228,8 @@ class FasterRCNN(nn.Module):
         label = roi_data[1].squeeze()
         fg_cnt = torch.sum(label.data.ne(0))
         bg_cnt = label.data.numel() - fg_cnt
+        print label.data.cpu().numpy()
+        print cls_score.data.cpu().numpy()
 
         # for log
         if self.debug:

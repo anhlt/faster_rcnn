@@ -41,5 +41,5 @@ RUN useradd -ms /bin/bash anh
 
 ADD ./requirements.txt /tmp/requirements.txt
 WORKDIR /tmp/
+RUN pip install requests
 RUN pip install -r requirements.txt 
-RUN apt-get install libxtst6 lib6 -y

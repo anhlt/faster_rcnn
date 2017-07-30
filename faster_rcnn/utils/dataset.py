@@ -96,7 +96,7 @@ class CocoData(CocoDetection):
 
         def bboxs(targets):
             for target in targets:
-                overlap = [0] * len(self.classes)
+                overlap = np.array([0] * len(self.classes))
                 x1 = np.max((0, target['bbox'][0]))
                 y1 = np.max((0, target['bbox'][1]))
                 x2 = np.min(
@@ -111,9 +111,11 @@ class CocoData(CocoDetection):
                     overlap[class_index] = 1.0
                 if target['area'] > 0 and x2 >= x1 and y2 >= y1:
                     yield [x1, y1, x2, y2], class_index, target['area'], overlap
-
-        gt_boxes, gt_classes, gt_seg_areas, gt_overlaps = zip(
-            *[box for box in bboxs(annotation)])
+        try:
+            gt_boxes, gt_classes, gt_seg_areas, gt_overlaps = zip(
+                *[box for box in bboxs(annotation)])
+        except ValueError:
+            return None
 
         gt_boxes = np.array(gt_boxes, dtype=np.uint16)
         gt_classes = np.array(gt_classes, dtype=np.int32)

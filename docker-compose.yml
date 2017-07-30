@@ -13,15 +13,22 @@ services:
         working_dir: /data
         tty: true
         command: jupyter notebook --ip=0.0.0.0 --port=8081
+        links:
+            - "crayon"
     anaconda:
         image: "tuananhbk/mlpractice:gpu" 
         ports:
             - "19361:19361"
         volumes:
             - /home/anh/.config/sublime-text-3/Packages/Anaconda:/opt/anaconda
-            - ".:/data" 
+            - "./faster_rcnn:/data/faster_rcnn"
         depends_on:
             - python
         user: root
         entrypoint: /opt/anaconda/anaconda_server/docker/start python 19361 docker /opt/anaconda
         tty: true
+    crayon:
+        image: "alband/crayon"
+        ports:
+            - 8888:8888
+            - 8889:8889

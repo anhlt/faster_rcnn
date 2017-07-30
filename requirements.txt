@@ -3,3 +3,5 @@ scikit-learn
 jupyter
 easydict==1.7
 joblib
+requests
+pycrayon

@@ -12,7 +12,7 @@ from ..utils.cython_bbox import bbox_overlaps, bbox_intersections
 
 from ..config import cfg
 from ..fastrcnn.bbox_transform import bbox_transform
-DEBUG = False
+DEBUG = True
 
 
 def proposal_target_layer(rpn_rois, gt_boxes, gt_ishard, dontcare_areas, _num_classes):

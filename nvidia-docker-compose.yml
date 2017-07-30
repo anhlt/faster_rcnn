@@ -14,7 +14,18 @@ services:
     user: root
     volumes:
     - /home/anh/.config/sublime-text-3/Packages/Anaconda:/opt/anaconda
-    - .:/data
+    - ./faster_rcnn:/data/faster_rcnn
+    - nvidia_driver_375.66:/usr/local/nvidia:ro
+  crayon:
+    devices:
+    - /dev/nvidia0
+    - /dev/nvidiactl
+    - /dev/nvidia-uvm
+    image: alband/crayon
+    ports:
+    - 8888:8888
+    - 8889:8889
+    volumes:
     - nvidia_driver_375.66:/usr/local/nvidia:ro
   python:
     build:
@@ -26,6 +37,8 @@ services:
     - /dev/nvidiactl
     - /dev/nvidia-uvm
     image: tuananhbk/mlpractice:gpu
+    links:
+    - crayon
     ports:
     - 8081:8081
     tty: true
