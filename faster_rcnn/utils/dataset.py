@@ -9,6 +9,7 @@ import scipy
 from .ds_utils import unique_boxes, filter_small_boxes, validate_boxes
 import logging
 from ..utils.cython_bbox import bbox_overlaps
+
 logger = logging.getLogger(__name__)
 
 
@@ -34,7 +35,12 @@ def _get_image_blob(im):
 
 
 class CocoData(CocoDetection):
-    def __init__(self, root, annFile, pre_proposal_folder=None, transform=None, target_transform=None):
+    def __init__(self,
+                root, 
+                annFile, 
+                pre_proposal_folder=None, 
+                transform=None, 
+                target_transform=None): 
         super(CocoData, self).__init__(
             root, annFile, transform, target_transform)
 
@@ -154,7 +160,7 @@ class CocoData(CocoDetection):
         blobs['gt_ishard'] = np.zeros(len(gt_boxes))
         blobs['gt_classes'] = gt_classes
         blobs['gt_overlaps'] = scipy.sparse.csr_matrix(gt_overlaps)
-        blobs['boxes'] = gt_boxes
+        blobs['boxes'] = gt_boxes * im_info[0][2]
         blobs['flipped'] = False
         blobs['dontcare_areas'] = np.zeros([0, 4], dtype=np.float)
         blobs['im_info'] = np.array(im_info, dtype=np.float32)
