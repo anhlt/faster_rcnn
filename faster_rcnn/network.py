@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from torchvision.models.vgg import vgg16 as _vgg16
+import math
+from torch.nn.init import xavier_uniform
 
 
 class Conv2d(nn.Module):
@@ -20,6 +22,7 @@ class Conv2d(nn.Module):
         padding = int((kernel_size - 1) / 2) if same_padding else 0
         self.conv = nn.Conv2d(in_channels, out_channels,
                               kernel_size, stride, padding=padding)
+        nn.init.xavier_normal(self.conv.weight)
         self.bn = nn.BatchNorm2d(
             out_channels, eps=0.001,
             momentum=0,
@@ -47,7 +50,8 @@ class FC(nn.Module):
                  ):
         super(FC, self).__init__()
         self.fc = nn.Linear(in_features, out_features)
-        self.relu = nn.ReLU(inplace=True)
+        nn.init.xavier_normal(self.fc.weight)
+        self.relu = nn.ReLU(inplace=True) if relu else None
 
     def forward(self, x):
         x = self.fc(x)

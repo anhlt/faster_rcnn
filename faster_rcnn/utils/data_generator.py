@@ -2,6 +2,7 @@ import threading
 import numpy as np
 import multiprocessing
 import time
+import Queue
 
 
 class Iterator(object):
@@ -77,9 +78,10 @@ class CocoGenerator(Iterator):
 
         return self.data[index_array[0]]
 
+
 class Enqueuer(object):
-    def __init__(self, generator, use_multiprocessing=True, shuffle=False, random_seed=None):
-        self._generator = generator 
+    def __init__(self, generator, use_multiprocessing=True, shuffle=False, wait_time=0.05, random_seed=None):
+        self._generator = generator
         self._use_multiprocessing = use_multiprocessing
         self.queue = None
         self._stop_event = None
@@ -87,77 +89,73 @@ class Enqueuer(object):
         self.wait_time = wait_time
         self.random_seed = random_seed
 
-    def is_running(self):
-        return self.stop_signal is not None 
+    def start(self, workers=3, max_queue_size=10):
 
-    def start(self, workers=1, max_queue_size=10):
-        
         def data_generator_task():
             while not self._stop_event.is_set():
                 try:
                     if self._use_multiprocessing or self.queue.qsize() < max_queue_size:
                         generator_output = next(self._generator)
                         self.queue.put(generator_output)
-                    else
+                    else:
                         time.sleep(self.wait_time)
                 except Exception:
                     self._stop_event.set()
                     raise
 
-
         try:
             if self._use_multiprocessing:
-                self.queue = multiprocessing.Queue(maxsize = max_queue_size)
+                self.queue = multiprocessing.Queue(maxsize=max_queue_size)
                 self._stop_event = multiprocessing.Event()
             else:
-                self.queue = queue.Queue()
+                self.queue = Queue.Queue()
                 self._stop_event = threading.Event()
 
             for _ in range(workers):
                 if self._use_multiprocessing:
                     np.random.seed(self.random_seed)
-                    thread = multiprocessing.Process(target=data_generator_task)
+                    thread = multiprocessing.Process(
+                        target=data_generator_task)
                     thread.daemon = True
                     if self.random_seed is not None:
                         self.random_seed += 1
 
                 else:
-                    thread = threading.Thread(target = data_generator_task)
+                    thread = threading.Thread(target=data_generator_task)
 
                 self._threads.append(thread)
-        except:
+                thread.start()
+        except Exception:
             self.stop()
             raise
 
-        def is_running(self):
-            return self._stop_event is not None and not self._stop_event.is_set()
+    def is_running(self):
+        return self._stop_event is not None and not self._stop_event.is_set()
 
-        def stop(self, timeout= None):
-            if self.is_running():
-                self._stop_event.set()
+    def stop(self, timeout=None):
+        if self.is_running():
+            self._stop_event.set()
 
-            for thread in self._threads:
-                if thread.is_alive():
-                    if self._use_multiprocessing:
-                        thread.terminate()
-                    else:
-                        thread.join(timeout)
-            if self._use_multiprocessing:
-                if self.queue is not None:
-                    self.queue.close()
-
-            self._threads = []
-            self._stop_event = None
-            self.queue = None
-
-        def get(self):
-            while self.is_running():
-                if not self.queue.empty():
-                    inputs = self.queue.get()
-                    if inputs is not None:
-                        yield inputs
+        for thread in self._threads:
+            if thread.is_alive():
+                if self._use_multiprocessing:
+                    thread.terminate()
                 else:
-                    time.sleep(self.timeout)
-                pass
+                    thread.join(timeout)
+        if self._use_multiprocessing:
+            if self.queue is not None:
+                self.queue.close()
 
+        self._threads = []
+        self._stop_event = None
+        self.queue = None
 
+    def get(self):
+        while self.is_running():
+            if not self.queue.empty():
+                inputs = self.queue.get()
+                if inputs is not None:
+                    yield inputs
+            else:
+                time.sleep(self.wait_time)
+            pass

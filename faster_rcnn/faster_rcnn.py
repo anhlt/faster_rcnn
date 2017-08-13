@@ -53,12 +53,10 @@ class RPN(nn.Module):
 
         # rpn score
         rpn_cls_score = self.score_conv(rpn_conv1)  # (N, A * 2, W, H)
-        rpn_cls_score_reshape = self.reshape_layer(
-            rpn_cls_score, 2)  # (N, 2, -1, H)
+        rpn_cls_score_reshape = self.reshape_layer(rpn_cls_score, 2)  # (N, 2, -1, H)
         # (N, 2, -1, H) # Because Softmax take place over dimension 1
         rpn_cls_prob = F.softmax(rpn_cls_score_reshape)
-        rpn_cls_prob_reshape = self.reshape_layer(rpn_cls_prob, len(
-            self.anchor_scales) * 3 * 2)  # (N , H , W , Ax2)
+        rpn_cls_prob_reshape = self.reshape_layer(rpn_cls_prob, len(self.anchor_scales) * 3 * 2)  # (N , H , W , Ax2)
 
         # rpn boxes
         rpn_bbox_pred = self.bbox_conv(rpn_conv1)
@@ -98,11 +96,8 @@ class RPN(nn.Module):
         rpn_cross_entropy = F.cross_entropy(rpn_cls_score, rpn_label)
 
         # box loss
-        rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights = rpn_data[
-            1:]
-
-        rpn_bbox_targets = torch.mul(
-            rpn_bbox_targets, rpn_bbox_inside_weights)
+        rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights = rpn_data[1:]
+        rpn_bbox_targets = torch.mul(rpn_bbox_targets, rpn_bbox_inside_weights)
         rpn_bbox_pred = torch.mul(rpn_bbox_pred, rpn_bbox_inside_weights)
 
         rpn_loss_box = F.smooth_l1_loss(
@@ -183,7 +178,7 @@ class FasterRCNN(nn.Module):
         self.n_classes = len(classes)
 
         self.rpn = RPN()
-        self.roi_pool = RoIPool(7, 7, 1.0 / 6)
+        self.roi_pool = RoIPool(7, 7, 1.0 / 16)
         self.fc6 = FC(512 * 7 * 7, 4096)
         self.fc7 = FC(4096, 4096)
         self.score_fc = FC(4096, self.n_classes, relu=False)
@@ -228,8 +223,6 @@ class FasterRCNN(nn.Module):
         label = roi_data[1].squeeze()
         fg_cnt = torch.sum(label.data.ne(0))
         bg_cnt = label.data.numel() - fg_cnt
-        print label.data.cpu().numpy()
-        print cls_score.data.cpu().numpy()
 
         # for log
         if self.debug:
@@ -323,7 +316,8 @@ class FasterRCNN(nn.Module):
 
         cls_prob, bbox_pred, rois = self(im_data, im_info)
         pred_boxes, scores, classes = \
-            self.interpret_faster_rcnn(cls_prob, bbox_pred, rois, im_info, image.shape, min_score=thr)
+            self.interpret_faster_rcnn(
+                cls_prob, bbox_pred, rois, im_info, image.shape, min_score=thr)
         return pred_boxes, scores, classes
 
     def get_image_blob(self, im):

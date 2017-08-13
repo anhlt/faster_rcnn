@@ -12,7 +12,7 @@ from ..utils.cython_bbox import bbox_overlaps, bbox_intersections
 
 from ..config import cfg
 from ..fastrcnn.bbox_transform import bbox_transform
-DEBUG = True
+DEBUG = False
 
 
 def proposal_target_layer(rpn_rois, gt_boxes, gt_ishard, dontcare_areas, _num_classes):
@@ -231,7 +231,7 @@ def _jitter_gt_boxes(gt_boxes, jitter=0.05):
     """ jitter the gtboxes, before adding them into rois, to be more robust for cls and rgs
     gt_boxes: (G, 5) [x1 ,y1 ,x2, y2, class] int
     """
-    jittered_boxes = gt_boxes.copy()
+    jittered_boxes = gt_boxes.copy().astype(np.float32)
     ws = jittered_boxes[:, 2] - jittered_boxes[:, 0] + 1.0
     hs = jittered_boxes[:, 3] - jittered_boxes[:, 1] + 1.0
     width_offset = (np.random.rand(jittered_boxes.shape[0]) - 0.5) * jitter * ws
