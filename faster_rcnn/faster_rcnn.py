@@ -282,31 +282,31 @@ class FasterRCNN(nn.Module):
 
         return rois, labels, bbox_targets, bbox_inside_weights, bbox_outside_weights
 
-        def interpret_faster_rcnn(self, cls_prob, bbox_pred, rois, im_info, im_shape, nms=True, clip=True, min_score=0.0):
-            # find class
-            scores, inds = cls_prob.data.max(1)
-            scores, inds = scores.cpu().numpy(), inds.cpu().numpy()
+    def interpret_faster_rcnn(self, cls_prob, bbox_pred, rois, im_info, im_shape, nms=True, clip=True, min_score=0.0):
+        # find class
+        scores, inds = cls_prob.data.max(1)
+        scores, inds = scores.cpu().numpy(), inds.cpu().numpy()
 
-            keep = np.where((inds > 0) & (scores >= min_score))
-            scores, inds = scores[keep], inds[keep]
+        keep = np.where((inds > 0) & (scores >= min_score))
+        scores, inds = scores[keep], inds[keep]
 
-            # Apply bounding-box regression deltas
-            keep = keep[0]
-            box_deltas = bbox_pred.data.cpu().numpy()[keep]
-            box_deltas = np.asarray([
-                box_deltas[i, (inds[i] * 4): (inds[i] * 4 + 4)] for i in range(len(inds))
-            ], dtype=np.float)
-            boxes = rois.data.cpu().numpy()[keep, 1:5] / im_info[0][2]
-            pred_boxes = bbox_transform_inv(boxes, box_deltas)
-            if clip:
-                pred_boxes = clip_boxes(pred_boxes, im_shape)
+        # Apply bounding-box regression deltas
+        keep = keep[0]
+        box_deltas = bbox_pred.data.cpu().numpy()[keep]
+        box_deltas = np.asarray([
+            box_deltas[i, (inds[i] * 4): (inds[i] * 4 + 4)] for i in range(len(inds))
+        ], dtype=np.float)
+        boxes = rois.data.cpu().numpy()[keep, 1:5] / im_info[0][2]
+        pred_boxes = bbox_transform_inv(boxes, box_deltas)
+        if clip:
+            pred_boxes = clip_boxes(pred_boxes, im_shape)
 
-            # nms
-            if nms and pred_boxes.shape[0] > 0:
-                pred_boxes, scores, inds = nms_detections(
-                    pred_boxes, scores, 0.3, inds=inds)
+        # nms
+        if nms and pred_boxes.shape[0] > 0:
+            pred_boxes, scores, inds = nms_detections(
+                pred_boxes, scores, 0.3, inds=inds)
 
-            return pred_boxes, scores, self.classes[inds]
+        return pred_boxes, scores, self.classes[inds]
 
     def detect(self, image, thr=0.3):
         im_data, im_scales = self.get_image_blob(image)
