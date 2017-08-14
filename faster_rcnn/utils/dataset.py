@@ -85,7 +85,7 @@ class CocoData(CocoDetection):
         """
         coco = self.coco
         img_id = self.ids[index]
-        ann_id = coco.getAnnIds(imgIds=img_id)
+        ann_id = coco.getAnnIds(imgIds=img_id, iscrowd=None)
         annotation = coco.loadAnns(ann_id)
         image_info = coco.loadImgs(img_id)[0]
         im_file_path = os.path.join(self.root, image_info['file_name'])
