@@ -62,7 +62,7 @@ class FC(nn.Module):
 
 def vgg16():
     full_model = _vgg16(pretrained=True)
-    feature_model = full_model.features
+    feature_model = nn.Sequential(*list(full_model.features.children())[:-1])
     for name, module in feature_model.named_children():
         for param in module.parameters():
             param.requires_grad = False
