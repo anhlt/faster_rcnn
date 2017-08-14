@@ -95,6 +95,7 @@ class CocoData(CocoDetection):
         im_blob, im_info = _get_image_blob(cv2.imread(im_file_path))
         blobs = {'data': im_blob}
         blobs['im_name'] = os.path.basename(im_file_path)
+        blobs['image_info'] = image_info
 
         # The standard in computer vision is to specify the top left corner and the bottom right corner.
         # The coordinates are parsed by <your_dataset.py> (for example coco.py)
