@@ -232,6 +232,9 @@ class FasterRCNN(nn.Module):
             self.tf = torch.sum(predict[fg_cnt:].eq(label.data[fg_cnt:]))
             self.fg_cnt = fg_cnt
             self.bg_cnt = bg_cnt
+            print 'fg_cnt', fg_cnt
+            print 'bg_cnt', bg_cnt
+            print 'tp', self.tp
 
         ce_weights = torch.ones(cls_score.size()[1])
         ce_weights[0] = float(fg_cnt) / bg_cnt
