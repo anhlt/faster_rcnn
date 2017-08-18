@@ -27,7 +27,6 @@ def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_
     Parameters
     ----------
     rpn_cls_prob_reshape: (1 , H , W , Ax2) outputs of RPN, prob of bg or fg
-                         NOTICE: the old version is ordered by (1, H, W, 2, A) !!!!
     rpn_bbox_pred: (1 , H , W , Ax4), rgs boxes output of RPN
     im_info: a list of [image_height, image_width, scale_ratios]
     cfg_key: 'TRAIN' or 'TEST'

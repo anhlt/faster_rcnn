@@ -43,20 +43,14 @@ def proposal_target_layer(rpn_rois, gt_boxes, gt_ishard, dontcare_areas, _num_cl
     # and other times after box coordinates -- normalize to one format
 
     # Include ground-truth boxes in the set of candidate rois
-    if cfg.TRAIN.PRECLUDE_HARD_SAMPLES and gt_ishard is not None and gt_ishard.shape[0] > 0:
-        assert gt_ishard.shape[0] == gt_boxes.shape[0]
-        gt_ishard = gt_ishard.astype(int)
-        gt_easyboxes = gt_boxes[gt_ishard != 1, :]
-    else:
-        gt_easyboxes = gt_boxes
+    gt_easyboxes = gt_boxes
 
     """
     add the ground-truth to rois will cause zero loss! not good for visuallization
     """
     jittered_gt_boxes = _jitter_gt_boxes(gt_easyboxes)
-    zeros = np.zeros((gt_easyboxes.shape[0] * 2, 1), dtype=gt_easyboxes.dtype)
-    all_rois = np.vstack((all_rois, \
-                          np.hstack((zeros, np.vstack((gt_easyboxes[:, :-1], jittered_gt_boxes[:, :-1]))))))
+    zeros = np.zeros((gt_easyboxes.shape[0], 1), dtype=gt_easyboxes.dtype)
+    all_rois = np.vstack((all_rois, np.hstack((zeros, jittered_gt_boxes[:, :-1]))))
 
     # Sanity check: single batch only
     assert np.all(all_rois[:, 0] == 0), \

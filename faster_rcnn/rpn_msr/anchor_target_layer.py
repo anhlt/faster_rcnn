@@ -167,19 +167,6 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_i
 
     # preclude hard samples that are highly occlusioned, truncated or
     # difficult to see
-    if cfg.TRAIN.PRECLUDE_HARD_SAMPLES and gt_ishard is not None and gt_ishard.shape[0] > 0:
-        assert gt_ishard.shape[0] == gt_boxes.shape[0]
-        gt_ishard = gt_ishard.astype(int)
-        gt_hardboxes = gt_boxes[gt_ishard == 1, :]
-        if gt_hardboxes.shape[0] > 0:
-            # H x A
-            hard_overlaps = bbox_overlaps(
-                np.ascontiguousarray(gt_hardboxes, dtype=np.float),  # H x 4
-                np.ascontiguousarray(anchors, dtype=np.float))  # A x 4
-            hard_max_overlaps = hard_overlaps.max(axis=0)  # (A)
-            labels[hard_max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = -1
-            max_intersec_label_inds = hard_overlaps.argmax(axis=1)  # H x 1
-            labels[max_intersec_label_inds] = -1  #
 
     # subsample positive labels if we have too many
     num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)

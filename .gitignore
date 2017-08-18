@@ -97,3 +97,5 @@ local_settings.py
 
 # sftp configuration file
 sftp-config.json
+
+*.pkl
