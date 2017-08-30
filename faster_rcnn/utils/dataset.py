@@ -36,11 +36,11 @@ def _get_image_blob(im):
 
 class CocoData(CocoDetection):
     def __init__(self,
-                root, 
-                annFile, 
-                pre_proposal_folder=None, 
-                transform=None, 
-                target_transform=None): 
+                 root,
+                 annFile,
+                 pre_proposal_folder=None,
+                 transform=None,
+                 target_transform=None):
         super(CocoData, self).__init__(
             root, annFile, transform, target_transform)
 

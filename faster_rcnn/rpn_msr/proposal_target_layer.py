@@ -8,7 +8,7 @@
 import numpy as np
 import numpy.random as npr
 
-from ..utils.cython_bbox import bbox_overlaps, bbox_intersections
+from ..utils.cython_bbox import bbox_overlaps
 
 from ..config import cfg
 from ..fastrcnn.bbox_transform import bbox_transform
@@ -48,9 +48,9 @@ def proposal_target_layer(rpn_rois, gt_boxes, gt_ishard, dontcare_areas, _num_cl
     """
     add the ground-truth to rois will cause zero loss! not good for visuallization
     """
-    #jittered_gt_boxes = _jitter_gt_boxes(gt_easyboxes)
-    #zeros = np.zeros((gt_easyboxes.shape[0], 1), dtype=gt_easyboxes.dtype)
-    #all_rois = np.vstack((all_rois, np.hstack((zeros, jittered_gt_boxes[:, :-1]))))
+    jittered_gt_boxes = _jitter_gt_boxes(gt_easyboxes)
+    zeros = np.zeros((gt_easyboxes.shape[0], 1), dtype=gt_easyboxes.dtype)
+    all_rois = np.vstack((all_rois, np.hstack((zeros, jittered_gt_boxes[:, :-1]))))
 
     # Sanity check: single batch only
     assert np.all(all_rois[:, 0] == 0), \

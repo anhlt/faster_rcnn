@@ -9,7 +9,7 @@ import numpy as np
 import numpy.random as npr
 
 from .generate_anchors import generate_anchors
-from ..utils.cython_bbox import bbox_overlaps, bbox_intersections
+from ..utils.cython_bbox import bbox_overlaps
 
 from ..fastrcnn.bbox_transform import bbox_transform
 from ..config import cfg
@@ -155,19 +155,6 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_i
         # assign bg labels last so that negative labels can clobber positives
         labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
 
-    # preclude dontcare areas
-    if dontcare_areas is not None and dontcare_areas.shape[0] > 0:
-        # intersec shape is D x A
-        intersecs = bbox_intersections(
-            np.ascontiguousarray(dontcare_areas, dtype=np.float),  # D x 4
-            np.ascontiguousarray(anchors, dtype=np.float)  # A x 4
-        )
-        intersecs_ = intersecs.sum(axis=0)  # A x 1
-        labels[intersecs_ > cfg.TRAIN.DONTCARE_AREA_INTERSECTION_HI] = -1
-
-    # preclude hard samples that are highly occlusioned, truncated or
-    # difficult to see
-
     # subsample positive labels if we have too many
     num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)
     fg_inds = np.where(labels == 1)[0]
@@ -183,8 +170,8 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_i
         disable_inds = npr.choice(
             bg_inds, size=(len(bg_inds) - num_bg), replace=False)
         labels[disable_inds] = -1
-        # print "was %s inds, disabling %s, now %s inds" % (
-        # len(bg_inds), len(disable_inds), np.sum(labels == 0))
+        if DEBUG:
+            print "was %s inds, disabling %s, now %s inds" % (len(bg_inds), len(disable_inds), np.sum(labels == 0))
 
     # bbox_targets = np.zeros((len(inds_inside), 4), dtype=np.float32)
     bbox_targets = _compute_targets(anchors, gt_boxes[argmax_overlaps, :])
@@ -255,16 +242,16 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_i
     # bbox_inside_weights
     bbox_inside_weights = bbox_inside_weights \
         .reshape((1, height, width, A * 4)).transpose(0, 3, 1, 2)
-    # assert bbox_inside_weights.shape[2] == height
-    # assert bbox_inside_weights.shape[3] == width
+    assert bbox_inside_weights.shape[2] == height
+    assert bbox_inside_weights.shape[3] == width
 
     rpn_bbox_inside_weights = bbox_inside_weights
 
     # bbox_outside_weights
     bbox_outside_weights = bbox_outside_weights \
         .reshape((1, height, width, A * 4)).transpose(0, 3, 1, 2)
-    # assert bbox_outside_weights.shape[2] == height
-    # assert bbox_outside_weights.shape[3] == width
+    assert bbox_outside_weights.shape[2] == height
+    assert bbox_outside_weights.shape[3] == width
 
     rpn_bbox_outside_weights = bbox_outside_weights
 

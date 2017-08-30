@@ -63,7 +63,7 @@ __C.TRAIN.SCALES_BASE = (0.25, 0.5, 1.0, 2.0, 3.0)
 # __C.TRAIN.SCALES_BASE = (1.0,)
 
 # parameters for ROI generating
-# __C.TRAIN.SPATIAL_SCALE = 0.0625
+__C.TRAIN.SPATIAL_SCALE = 0.0625
 __C.TRAIN.KERNEL_SIZE = 5
 
 # Aspect ratio to use during training
