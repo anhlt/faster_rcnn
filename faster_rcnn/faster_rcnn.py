@@ -191,7 +191,7 @@ class FasterRCNN(nn.Module):
 
     @property
     def loss(self):
-        return self.cross_entropy + self.loss_box * 5
+        return self.cross_entropy + self.loss_box
 
     def forward(self, im_data, im_info, gt_boxes=None, gt_ishard=None, dontcare_areas=None):
         features, rois = self.rpn(
@@ -329,7 +329,7 @@ class FasterRCNN(nn.Module):
                 in the image pyramid
         """
         im_orig = im.astype(np.float32, copy=True)
-        im_orig -= self.PIXEL_MEANS
+        # im_orig -= self.PIXEL_MEANS
 
         im_shape = im_orig.shape
         im_size_min = np.min(im_shape[0:2])
