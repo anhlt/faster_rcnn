@@ -84,7 +84,7 @@ __C.TRAIN.IMS_PER_BATCH = 2
 __C.TRAIN.BATCH_SIZE = 300
 
 # Fraction of minibatch that is labeled foreground (i.e. class > 0)
-__C.TRAIN.FG_FRACTION = 0.80
+__C.TRAIN.FG_FRACTION = 0.25
 
 # Overlap threshold for a ROI to be considered foreground (if >= FG_THRESH)
 __C.TRAIN.FG_THRESH = 0.5
@@ -142,7 +142,7 @@ __C.TRAIN.PRECLUDE_HARD_SAMPLES = True
 # Use RPN to detect objects
 __C.TRAIN.HAS_RPN = True
 # IOU >= thresh: positive example
-__C.TRAIN.RPN_POSITIVE_OVERLAP = 0.5
+__C.TRAIN.RPN_POSITIVE_OVERLAP = 0.7
 # IOU < thresh: negative example
 __C.TRAIN.RPN_NEGATIVE_OVERLAP = 0.3
 # If an anchor statisfied by positive and negative conditions set to negative
