@@ -123,14 +123,14 @@ __C.TRAIN.BBOX_NORMALIZE_TARGETS = True
 __C.TRAIN.BBOX_INSIDE_WEIGHTS = (1.0, 1.0, 1.0, 1.0)
 # Normalize the targets using "precomputed" (or made up) means and stdevs
 # (BBOX_NORMALIZE_TARGETS must also be True)
-__C.TRAIN.BBOX_NORMALIZE_TARGETS_PRECOMPUTED = True
+__C.TRAIN.BBOX_NORMALIZE_TARGETS_PRECOMPUTED = False
 __C.TRAIN.BBOX_NORMALIZE_MEANS = (0.0, 0.0, 0.0, 0.0)
 __C.TRAIN.BBOX_NORMALIZE_STDS = (0.1, 0.1, 0.2, 0.2)
 # faster rcnn dont use pre-generated rois by selective search
 # __C.TRAIN.BBOX_NORMALIZE_STDS = (1, 1, 1, 1)
 
 # Train using these proposals
-__C.TRAIN.PROPOSAL_METHOD = 'selective_search'
+__C.TRAIN.PROPOSAL_METHOD = 'mcg'
 
 # Make minibatches from images that have similar aspect ratios (i.e. both
 # tall and thin or both short and wide) in order to avoid wasting computation
@@ -196,16 +196,14 @@ __C.TEST.BBOX_REG = True
 __C.TEST.HAS_RPN = True
 
 # Test using these proposals
-__C.TEST.PROPOSAL_METHOD = 'selective_search'
+__C.TEST.PROPOSAL_METHOD = 'mcg'
 
 ## NMS threshold used on RPN proposals
 __C.TEST.RPN_NMS_THRESH = 0.7
 ## Number of top scoring boxes to keep before apply NMS to RPN proposals
-__C.TEST.RPN_PRE_NMS_TOP_N = 6000
-# __C.TEST.RPN_PRE_NMS_TOP_N = 12000
+__C.TEST.RPN_PRE_NMS_TOP_N = 12000
 ## Number of top scoring boxes to keep after applying NMS to RPN proposals
-__C.TEST.RPN_POST_NMS_TOP_N = 300
-# __C.TEST.RPN_POST_NMS_TOP_N = 2000
+__C.TEST.RPN_POST_NMS_TOP_N = 2000
 # Proposal height and width both need to be greater than RPN_MIN_SIZE (at orig image scale)
 __C.TEST.RPN_MIN_SIZE = 16
 

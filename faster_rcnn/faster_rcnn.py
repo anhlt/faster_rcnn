@@ -12,6 +12,7 @@ from .fastrcnn.bbox_transform import bbox_transform_inv, clip_boxes
 from .fastrcnn.nms_wrapper import nms
 from .utils.blob import im_list_to_blob
 import cv2
+from network import smooth_l1_loss
 
 
 def nms_detections(pred_boxes, scores, nms_thresh, inds=None):
@@ -65,7 +66,6 @@ class RPN(nn.Module):
         rois = self.proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred,
                                    im_info, cfg_key, self._feat_stride,
                                    self.anchor_scales)
-
         if self.training:
             assert gt_boxes is not None
             # list GT boxes
@@ -225,6 +225,7 @@ class FasterRCNN(nn.Module):
         # for log
         if self.debug:
             maxv, predict = cls_score.data.max(1)
+            # print predict
             self.tp = torch.sum(predict[:fg_cnt].eq(
                 label.data[:fg_cnt])) if fg_cnt > 0 else 0
             self.tf = torch.sum(predict[fg_cnt:].eq(label.data[fg_cnt:]))
@@ -233,18 +234,22 @@ class FasterRCNN(nn.Module):
             print 'fg_cnt', fg_cnt
             print 'bg_cnt', bg_cnt
             print 'tp', self.tp
+            print 'cls_score.size()', cls_score.size()
 
         ce_weights = torch.ones(cls_score.size()[1])
         ce_weights[0] = float(fg_cnt) / bg_cnt
         ce_weights = ce_weights.cuda()
         cross_entropy = F.cross_entropy(cls_score, label, weight=ce_weights)
-        # bounding box regression L1 loss
         bbox_targets, bbox_inside_weights, bbox_outside_weights = roi_data[2:]
-        bbox_targets = torch.mul(bbox_targets, bbox_inside_weights)
-        bbox_pred = torch.mul(bbox_pred, bbox_inside_weights)
 
-        loss_box = F.smooth_l1_loss(
-            bbox_pred, bbox_targets, size_average=False) / (fg_cnt + 1e-4)
+        # # bounding box regression L1 loss
+        # bbox_targets = torch.mul(bbox_targets, bbox_inside_weights)
+        # bbox_pred = torch.mul(bbox_pred, bbox_inside_weights)
+        # if True:
+        #     print 'bbox_targets 2', bbox_targets.cpu().data.numpy()
+        #     print 'bbox_targets 2', bbox_targets.cpu().data.numpy().shape
+
+        loss_box = smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights)
         return cross_entropy, loss_box
 
     @staticmethod
@@ -300,24 +305,23 @@ class FasterRCNN(nn.Module):
         if clip:
             pred_boxes = clip_boxes(pred_boxes, im_shape)
 
-        # nms
         if nms and pred_boxes.shape[0] > 0:
             pred_boxes, scores, inds = nms_detections(
-                pred_boxes, scores, 0.3, inds=inds)
+                pred_boxes, scores, 0.1, inds=inds)
+        self.classes = np.array(self.classes)
+        return pred_boxes, scores, self.classes[inds], boxes
 
-        return pred_boxes, scores, self.classes[inds]
-
-    def detect(self, image, thr=0.3):
+    def detect(self, image, thr=0.5):
         im_data, im_scales = self.get_image_blob(image)
         im_info = np.array(
             [[im_data.shape[1], im_data.shape[2], im_scales[0]]],
             dtype=np.float32)
 
         cls_prob, bbox_pred, rois = self(im_data, im_info)
-        pred_boxes, scores, classes = \
+        pred_boxes, scores, classes, rois = \
             self.interpret_faster_rcnn(
-                cls_prob, bbox_pred, rois, im_info, image.shape, min_score=thr)
-        return pred_boxes, scores, classes
+                cls_prob, bbox_pred, rois, im_info, image.shape, min_score=thr, nms=True)
+        return pred_boxes, scores, classes, rois
 
     def get_image_blob(self, im):
         """Converts an image into a network input.

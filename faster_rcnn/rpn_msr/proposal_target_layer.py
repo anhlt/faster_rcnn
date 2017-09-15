@@ -43,14 +43,14 @@ def proposal_target_layer(rpn_rois, gt_boxes, gt_ishard, dontcare_areas, _num_cl
     # and other times after box coordinates -- normalize to one format
 
     # Include ground-truth boxes in the set of candidate rois
-    gt_easyboxes = gt_boxes
+    # gt_easyboxes = gt_boxes
 
-    """
-    add the ground-truth to rois will cause zero loss! not good for visuallization
-    """
-    jittered_gt_boxes = _jitter_gt_boxes(gt_easyboxes)
-    zeros = np.zeros((gt_easyboxes.shape[0], 1), dtype=gt_easyboxes.dtype)
-    all_rois = np.vstack((all_rois, np.hstack((zeros, jittered_gt_boxes[:, :-1]))))
+    # """
+    # add the ground-truth to rois will cause zero loss! not good for visuallization
+    # """
+    # jittered_gt_boxes = _jitter_gt_boxes(gt_easyboxes)
+    zeros = np.zeros((gt_boxes.shape[0], 1), dtype=gt_boxes.dtype)
+    all_rois = np.vstack((all_rois, np.hstack((zeros, gt_boxes[:, :-1]))))
 
     # Sanity check: single batch only
     assert np.all(all_rois[:, 0] == 0), \
@@ -78,7 +78,6 @@ def proposal_target_layer(rpn_rois, gt_boxes, gt_ishard, dontcare_areas, _num_cl
         print 'num fg avg: {}'.format(_fg_num / _count)
         print 'num bg avg: {}'.format(_bg_num / _count)
         print 'ratio: {:.3f}'.format(float(_fg_num) / float(_bg_num))
-
     rois = rois.reshape(-1, 5)
     labels = labels.reshape(-1, 1)
     bbox_targets = bbox_targets.reshape(-1, _num_classes * 4)
@@ -99,7 +98,11 @@ def _sample_rois(all_rois, gt_boxes, gt_ishard, dontcare_areas, fg_rois_per_imag
         np.ascontiguousarray(gt_boxes[:, :4], dtype=np.float))
     gt_assignment = overlaps.argmax(axis=1)  # R
     max_overlaps = overlaps.max(axis=1)  # R
+    if DEBUG:
+        print 'max max_overlap', np.max(max_overlaps)
+
     labels = gt_boxes[gt_assignment, 4]
+    # print labels
 
     fg_inds = np.where(max_overlaps >= cfg.TRAIN.FG_THRESH)[0]
     # Guard against the case when an image has fewer than fg_rois_per_image
@@ -119,7 +122,8 @@ def _sample_rois(all_rois, gt_boxes, gt_ishard, dontcare_areas, fg_rois_per_imag
     # Sample background regions without replacement
     if bg_inds.size > 0:
         bg_inds = npr.choice(bg_inds, size=bg_rois_per_this_image, replace=False)
-
+    # print bg_inds
+    # print fg_inds
     # The indices that we're selecting (both fg and bg)
     keep_inds = np.append(fg_inds, bg_inds)
     # Select sampled values from various arrays:
@@ -130,12 +134,21 @@ def _sample_rois(all_rois, gt_boxes, gt_ishard, dontcare_areas, fg_rois_per_imag
 
     bbox_target_data = _compute_targets(
         rois[:, 1:5], gt_boxes[gt_assignment[keep_inds], :4], labels)
+    if DEBUG:
+        print 'max bbox_target_data', np.max(bbox_target_data)
+        print 'shape bbox_target_data', bbox_target_data.shape
+        print ' bbox_target_data', bbox_target_data
 
     # bbox_target_data (1 x H x W x A, 5)
     # bbox_targets <- (1 x H x W x A, K x 4)
     # bbox_inside_weights <- (1 x H x W x A, K x 4)
     bbox_targets, bbox_inside_weights = \
         _get_bbox_regression_labels(bbox_target_data, num_classes)
+
+    if DEBUG:
+        print 'max bbox_targets', np.max(bbox_targets)
+        print 'shape bbox_targets', bbox_targets.shape
+        print ' bbox_targets', bbox_targets
 
     return labels, rois, bbox_targets, bbox_inside_weights
 

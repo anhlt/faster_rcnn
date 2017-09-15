@@ -68,8 +68,12 @@ def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_
     # cfg_key = 'TEST'
     pre_nms_topN = cfg[cfg_key].RPN_PRE_NMS_TOP_N
     post_nms_topN = cfg[cfg_key].RPN_POST_NMS_TOP_N
+    # pre_nms_topN = 12000
+    # post_nms_topN = 2000
+
     nms_thresh = cfg[cfg_key].RPN_NMS_THRESH
     min_size = cfg[cfg_key].RPN_MIN_SIZE
+
 
     # the first set of _num_anchors channels are bg probs
     # the second set are the fg probs, which we want
@@ -127,11 +131,14 @@ def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_
 
     # 2. clip predicted boxes to image
     proposals = clip_boxes(proposals, im_info[:2])
-
+    if DEBUG:
+        print 'proposals shape 1:' , proposals.shape
     # 3. remove predicted boxes with either height or width < threshold
     # (NOTE: convert min_size to input image scale stored in im_info[2])
     keep = _filter_boxes(proposals, min_size * im_info[2])
     proposals = proposals[keep, :]
+    if DEBUG:
+        print 'proposals shape 2:' , proposals.shape
     scores = scores[keep]
 
     # # remove irregular boxes, too fat too tall
@@ -146,14 +153,18 @@ def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_
         order = order[:pre_nms_topN]
     proposals = proposals[order, :]
     scores = scores[order]
+    if DEBUG:
+        print 'proposals shape 3:' , proposals.shape
 
     # 6. apply nms (e.g. threshold = 0.7)
     # 7. take after_nms_topN (e.g. 300)
     # 8. return the top proposals (-> RoIs top)
-    keep = nms(np.hstack((proposals, scores)), nms_thresh)
+    keep = nms(np.hstack((proposals, scores)), 0.9)
     if post_nms_topN > 0:
         keep = keep[:post_nms_topN]
     proposals = proposals[keep, :]
+    if DEBUG:
+        print 'proposals shape 4:' , proposals.shape
     scores = scores[keep]
     # Output rois blob
     # Our RPN implementation only supports a single input image, so all
