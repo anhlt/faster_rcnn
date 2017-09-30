@@ -49,8 +49,8 @@ def proposal_target_layer(rpn_rois, gt_boxes, gt_ishard, dontcare_areas, _num_cl
     # add the ground-truth to rois will cause zero loss! not good for visuallization
     # """
     # jittered_gt_boxes = _jitter_gt_boxes(gt_easyboxes)
-    zeros = np.zeros((gt_boxes.shape[0], 1), dtype=gt_boxes.dtype)
-    all_rois = np.vstack((all_rois, np.hstack((zeros, gt_boxes[:, :-1]))))
+    # zeros = np.zeros((gt_boxes.shape[0], 1), dtype=gt_boxes.dtype)
+    # all_rois = np.vstack((all_rois, np.hstack((zeros, gt_boxes[:, :-1]))))
 
     # Sanity check: single batch only
     assert np.all(all_rois[:, 0] == 0), \
@@ -102,7 +102,6 @@ def _sample_rois(all_rois, gt_boxes, gt_ishard, dontcare_areas, fg_rois_per_imag
         print 'max max_overlap', np.max(max_overlaps)
 
     labels = gt_boxes[gt_assignment, 4]
-    # print labels
 
     fg_inds = np.where(max_overlaps >= cfg.TRAIN.FG_THRESH)[0]
     # Guard against the case when an image has fewer than fg_rois_per_image
@@ -137,7 +136,6 @@ def _sample_rois(all_rois, gt_boxes, gt_ishard, dontcare_areas, fg_rois_per_imag
     if DEBUG:
         print 'max bbox_target_data', np.max(bbox_target_data)
         print 'shape bbox_target_data', bbox_target_data.shape
-        print ' bbox_target_data', bbox_target_data
 
     # bbox_target_data (1 x H x W x A, 5)
     # bbox_targets <- (1 x H x W x A, K x 4)
@@ -148,7 +146,6 @@ def _sample_rois(all_rois, gt_boxes, gt_ishard, dontcare_areas, fg_rois_per_imag
     if DEBUG:
         print 'max bbox_targets', np.max(bbox_targets)
         print 'shape bbox_targets', bbox_targets.shape
-        print ' bbox_targets', bbox_targets
 
     return labels, rois, bbox_targets, bbox_inside_weights
 

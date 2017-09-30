@@ -14,7 +14,7 @@ from ..utils.cython_bbox import bbox_overlaps
 from ..fastrcnn.bbox_transform import bbox_transform
 from ..config import cfg
 
-DEBUG = False
+DEBUG = True
 
 
 def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_info, _feat_stride=[16, ],
@@ -79,6 +79,7 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_i
 
     # map of shape (..., H, W)
     # pytorch (bs, c, h, w)
+    print 'rpn_cls_score.shape', rpn_cls_score.shape
     height, width = rpn_cls_score.shape[2:4]
 
     if DEBUG:
@@ -210,7 +211,11 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_i
         print stds
 
     # map up to original set of anchors
+    print "---------------"
+    print labels.shape
     labels = _unmap(labels, total_anchors, inds_inside, fill=-1)
+    print labels.shape
+    print "---------------"
     bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside, fill=0)
     bbox_inside_weights = _unmap(
         bbox_inside_weights, total_anchors, inds_inside, fill=0)

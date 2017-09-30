@@ -35,14 +35,19 @@ class RPN(nn.Module):
         self.score_conv = Conv2d(
             512, len(self.anchor_scales) * 3 * 2, 1, relu=False)
         self.bbox_conv = Conv2d(
-            512, len(self.anchor_scales) * 3 * 4, 1, relu=False)
+            512, len(self.anchor_scales) * 3 * 4, 1, relu=False, init_param=False)
 
         self.cross_entropy = None
         self.loss_box = None
 
     @property
     def loss(self):
-        return self.cross_entropy + self.loss_box * 10
+        print "--"
+        print self.cross_entropy
+        print self.loss_box
+        print "--"
+
+        return self.cross_entropy + self.loss_box
 
     def forward(self,
                 im_data,
@@ -66,6 +71,7 @@ class RPN(nn.Module):
         rois = self.proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred,
                                    im_info, cfg_key, self._feat_stride,
                                    self.anchor_scales)
+
         if self.training:
             assert gt_boxes is not None
             # list GT boxes
@@ -90,19 +96,13 @@ class RPN(nn.Module):
             rpn_label.data.ne(-1).nonzero().squeeze()).cuda()
         rpn_cls_score = torch.index_select(rpn_cls_score, 0, rpn_keep)
         rpn_label = torch.index_select(rpn_label, 0, rpn_keep)
-
-        fg_cnt = torch.sum(rpn_label.data.ne(0))
-
         rpn_cross_entropy = F.cross_entropy(rpn_cls_score, rpn_label)
-
         # box loss
-        rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights = rpn_data[1:]
-        rpn_bbox_targets = torch.mul(rpn_bbox_targets, rpn_bbox_inside_weights)
-        rpn_bbox_pred = torch.mul(rpn_bbox_pred, rpn_bbox_inside_weights)
+        rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_inside_weights = rpn_data[1:]
+        rpn_loss_box = smooth_l1_loss(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_inside_weights, sigma=3.0, dim=[1, 2, 3])
 
-        rpn_loss_box = F.smooth_l1_loss(
-            rpn_bbox_pred, rpn_bbox_targets, size_average=False) / (fg_cnt + 1e-4)
-
+        print 'rpn_loss_box', rpn_loss_box
+        print 'rpn_cross_entropy', rpn_cross_entropy
         return rpn_cross_entropy, rpn_loss_box
 
     @staticmethod
@@ -177,7 +177,8 @@ class FasterRCNN(nn.Module):
         self.classes = classes
         self.n_classes = len(classes)
 
-        self.rpn = RPN()
+        self.features = vgg16()
+        # self.rpn = RPN()
         self.roi_pool = RoIPool(7, 7, 1.0 / 16)
         self.fc6 = FC(512 * 7 * 7, 4096)
         self.fc7 = FC(4096, 4096)
@@ -194,12 +195,23 @@ class FasterRCNN(nn.Module):
         return self.cross_entropy + self.loss_box
 
     def forward(self, im_data, im_info, gt_boxes=None, gt_ishard=None, dontcare_areas=None):
-        features, rois = self.rpn(
-            im_data, im_info, gt_boxes, gt_ishard, dontcare_areas)
+        # features, rois = self.rpn(
+        #     im_data, im_info, gt_boxes, gt_ishard, dontcare_areas)
+
+        # features.size = (1 , W, H, 512)
+        # rois
+        rois = gt_boxes[gt_boxes[:, 4] == 0.]
+        rois = np.roll(rois, 1)
+        rois = np_to_variable(rois)
+        gt_boxes = gt_boxes[gt_boxes[:, 4] != 0.]
         if self.training:
             roi_data = self.proposal_target_layer(
                 rois, gt_boxes, gt_ishard, dontcare_areas, self.n_classes)
             rois = roi_data[0]
+
+        im_data = np_to_variable(im_data)
+        im_data = im_data.permute(0, 3, 1, 2)
+        features = self.features(im_data)
 
         # Roi pool
         pooled_features = self.roi_pool(features, rois)
@@ -311,7 +323,7 @@ class FasterRCNN(nn.Module):
         self.classes = np.array(self.classes)
         return pred_boxes, scores, self.classes[inds], boxes
 
-    def detect(self, image, thr=0.5):
+    def detect(self, image, thr=0.5, rois=None):
         im_data, im_scales = self.get_image_blob(image)
         im_info = np.array(
             [[im_data.shape[1], im_data.shape[2], im_scales[0]]],

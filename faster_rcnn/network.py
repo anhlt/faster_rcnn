@@ -15,13 +15,16 @@ class Conv2d(nn.Module):
                  stride=1,
                  relu=True,
                  same_padding=False,
-                 bn=False):
+                 bn=False,
+                 init_param=True
+                 ):
 
         super(Conv2d, self).__init__()
         padding = int((kernel_size - 1) / 2) if same_padding else 0
         self.conv = nn.Conv2d(in_channels, out_channels,
                               kernel_size, stride, padding=padding)
-        nn.init.xavier_normal(self.conv.weight)
+        if init_param:
+            nn.init.xavier_normal(self.conv.weight)
         self.bn = nn.BatchNorm2d(
             out_channels, eps=0.001,
             momentum=0,
