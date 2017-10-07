@@ -15,7 +15,7 @@ from ..fastrcnn.bbox_transform import bbox_transform
 DEBUG = False
 
 
-def proposal_target_layer(rpn_rois, gt_boxes, gt_ishard, dontcare_areas, _num_classes):
+def proposal_target_layer(rpn_rois, gt_boxes, _num_classes):
     """
     Assign object detection proposals to ground-truth targets. Produces proposal
     classification labels and bounding-box regression targets.
@@ -23,8 +23,6 @@ def proposal_target_layer(rpn_rois, gt_boxes, gt_ishard, dontcare_areas, _num_cl
     ----------
     rpn_rois:  (1 x H x W x A, 5) [0, x1, y1, x2, y2]
     gt_boxes: (G, 5) [x1 ,y1 ,x2, y2, class] int
-    gt_ishard: (G, 1) {0 | 1} 1 indicates hard
-    dontcare_areas: (D, 4) [ x1, y1, x2, y2]
     _num_classes
     ----------
     Returns
@@ -63,7 +61,7 @@ def proposal_target_layer(rpn_rois, gt_boxes, gt_ishard, dontcare_areas, _num_cl
     # Sample rois with classification labels and bounding box regression
     # targets
     labels, rois, bbox_targets, bbox_inside_weights = _sample_rois(
-        all_rois, gt_boxes, gt_ishard, dontcare_areas, fg_rois_per_image,
+        all_rois, gt_boxes, fg_rois_per_image,
         rois_per_image, _num_classes)
 
     _count = 1
@@ -88,7 +86,7 @@ def proposal_target_layer(rpn_rois, gt_boxes, gt_ishard, dontcare_areas, _num_cl
     return rois, labels, bbox_targets, bbox_inside_weights, bbox_outside_weights
 
 
-def _sample_rois(all_rois, gt_boxes, gt_ishard, dontcare_areas, fg_rois_per_image, rois_per_image, num_classes):
+def _sample_rois(all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_classes):
     """Generate a random sample of RoIs comprising foreground and background
     examples.
     """
@@ -185,8 +183,7 @@ def _compute_targets(ex_rois, gt_rois, labels):
     targets = bbox_transform(ex_rois, gt_rois)
     if cfg.TRAIN.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
         # Optionally normalize targets by a precomputed mean and stdev
-        targets = ((targets - np.array(cfg.TRAIN.BBOX_NORMALIZE_MEANS))
-                   / np.array(cfg.TRAIN.BBOX_NORMALIZE_STDS))
+        targets = ((targets - np.array(cfg.TRAIN.BBOX_NORMALIZE_MEANS)) / np.array(cfg.TRAIN.BBOX_NORMALIZE_STDS))
     return np.hstack(
         (labels[:, np.newaxis], targets)).astype(np.float32, copy=False)
 

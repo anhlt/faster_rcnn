@@ -51,7 +51,7 @@ class RPN(nn.Module):
 
     def forward(self,
                 im_data,
-                im_info, gt_boxes=None, gt_ishard=None, dontcare_areas=None):
+                im_info, gt_boxes=None):
         im_data = np_to_variable(im_data)
         im_data = im_data.permute(0, 3, 1, 2)  # (N, 512, W, H)
         features = self.features(im_data)  # (N, 512, W, H)
@@ -76,8 +76,6 @@ class RPN(nn.Module):
             assert gt_boxes is not None
             # list GT boxes
             rpn_data = self.anchor_target_layer(rpn_cls_score, gt_boxes,
-                                                gt_ishard,
-                                                dontcare_areas,
                                                 im_info,
                                                 self._feat_stride,
                                                 self.anchor_scales)
@@ -129,7 +127,7 @@ class RPN(nn.Module):
         return x.view(-1, 5)
 
     @staticmethod
-    def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_info, _feat_stride, anchor_scales):
+    def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, anchor_scales):
         """
         rpn_cls_score: for pytorch (1, Ax2, H, W) bg/fg scores of previous conv layer
         gt_boxes: (G, 5) vstack of [x1, y1, x2, y2, class]
@@ -150,8 +148,7 @@ class RPN(nn.Module):
         """
         rpn_cls_score = rpn_cls_score.data.cpu().numpy()
         rpn_labels, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights = \
-            anchor_target_layer_py(rpn_cls_score, gt_boxes, gt_ishard,
-                                   dontcare_areas, im_info, _feat_stride, anchor_scales)
+            anchor_target_layer_py(rpn_cls_score, gt_boxes, im_info, _feat_stride, anchor_scales)
 
         rpn_labels = np_to_variable(
             rpn_labels, is_cuda=True, dtype=torch.LongTensor)
@@ -194,9 +191,9 @@ class FasterRCNN(nn.Module):
     def loss(self):
         return self.cross_entropy + self.loss_box
 
-    def forward(self, im_data, im_info, gt_boxes=None, gt_ishard=None, dontcare_areas=None):
+    def forward(self, im_data, im_info, gt_boxes=None):
         # features, rois = self.rpn(
-        #     im_data, im_info, gt_boxes, gt_ishard, dontcare_areas)
+        #     im_data, im_info, gt_boxes)
 
         # features.size = (1 , W, H, 512)
         # rois
@@ -206,7 +203,7 @@ class FasterRCNN(nn.Module):
         gt_boxes = gt_boxes[gt_boxes[:, 4] != 0.]
         if self.training:
             roi_data = self.proposal_target_layer(
-                rois, gt_boxes, gt_ishard, dontcare_areas, self.n_classes)
+                rois, gt_boxes, self.n_classes)
             rois = roi_data[0]
 
         im_data = np_to_variable(im_data)
@@ -265,13 +262,11 @@ class FasterRCNN(nn.Module):
         return cross_entropy, loss_box
 
     @staticmethod
-    def proposal_target_layer(rpn_rois, gt_boxes, gt_ishard, dontcare_areas, num_classes):
+    def proposal_target_layer(rpn_rois, gt_boxes, num_classes):
         """
         ----------
         rpn_rois:  (1 x H x W x A, 5) [0, x1, y1, x2, y2]
         gt_boxes: (G, 5) [x1 ,y1 ,x2, y2, class] int
-        # gt_ishard: (G, 1) {0 | 1} 1 indicates hard
-        dontcare_areas: (D, 4) [ x1, y1, x2, y2]
         num_classes
         ----------
         Returns
@@ -285,7 +280,7 @@ class FasterRCNN(nn.Module):
         rpn_rois = rpn_rois.data.cpu().numpy()
         rois, labels, bbox_targets, bbox_inside_weights, bbox_outside_weights = \
             proposal_target_layer_py(
-                rpn_rois, gt_boxes, gt_ishard, dontcare_areas, num_classes)
+                rpn_rois, gt_boxes, num_classes)
         # print labels.shape, bbox_targets.shape, bbox_inside_weights.shape
         rois = np_to_variable(rois, is_cuda=True)
         labels = np_to_variable(
