@@ -52,6 +52,10 @@ def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_
     #layer_params = yaml.load(self.param_str_)
 
     """
+    if DEBUG:
+        print 'rpn_cls_prob_reshape', rpn_cls_prob_reshape.shape 
+        print 'rpn_bbox_pred' , rpn_bbox_pred.shape
+
     _anchors = generate_anchors(scales=np.array(anchor_scales))
     _num_anchors = _anchors.shape[0]
     # rpn_cls_prob_reshape = np.transpose(rpn_cls_prob_reshape,[0,3,1,2]) #-> (1 , 2xA, H , W)

@@ -45,6 +45,8 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_i
     _num_anchors = _anchors.shape[0]
 
     if DEBUG:
+        print 'rpn_cls_score.shape', rpn_cls_score.shape
+        print 'image info', im_info
         print 'anchors:'
         print _anchors
         print 'anchor shapes:'
@@ -79,7 +81,6 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_i
 
     # map of shape (..., H, W)
     # pytorch (bs, c, h, w)
-    print 'rpn_cls_score.shape', rpn_cls_score.shape
     height, width = rpn_cls_score.shape[2:4]
 
     if DEBUG:
@@ -157,6 +158,8 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_i
         labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
 
     # subsample positive labels if we have too many
+    if DEBUG:
+        print 'cfg.TRAIN.RPN_FG_FRACTION , cfg.TRAIN.RPN_BATCHSIZE', cfg.TRAIN.RPN_FG_FRACTION, cfg.TRAIN.RPN_BATCHSIZE
     num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)
     fg_inds = np.where(labels == 1)[0]
     if len(fg_inds) > num_fg:

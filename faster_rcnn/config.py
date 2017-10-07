@@ -148,9 +148,9 @@ __C.TRAIN.RPN_NEGATIVE_OVERLAP = 0.3
 # If an anchor statisfied by positive and negative conditions set to negative
 __C.TRAIN.RPN_CLOBBER_POSITIVES = False
 # Max number of foreground examples
-__C.TRAIN.RPN_FG_FRACTION = 0.5
+__C.TRAIN.RPN_FG_FRACTION = 0.75
 # Total number of examples
-__C.TRAIN.RPN_BATCHSIZE = 256
+__C.TRAIN.RPN_BATCHSIZE = 512
 # NMS threshold used on RPN proposals
 __C.TRAIN.RPN_NMS_THRESH = 0.5
 # Number of top scoring boxes to keep before apply NMS to RPN proposals
