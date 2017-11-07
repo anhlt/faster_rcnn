@@ -53,8 +53,8 @@ def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_
 
     """
     if DEBUG:
-        print 'rpn_cls_prob_reshape', rpn_cls_prob_reshape.shape 
-        print 'rpn_bbox_pred' , rpn_bbox_pred.shape
+        print 'rpn_cls_prob_reshape', rpn_cls_prob_reshape.shape
+        print 'rpn_bbox_pred', rpn_bbox_pred.shape
 
     _anchors = generate_anchors(scales=np.array(anchor_scales))
     _num_anchors = _anchors.shape[0]
@@ -124,7 +124,6 @@ def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_
     # reshape to (1 * H * W * A, 4) where rows are ordered by (h, w, a)
     # in slowest to fastest order
     bbox_deltas = bbox_deltas.transpose((0, 2, 3, 1)).reshape((-1, 4))
-    print bbox_deltas
 
     # Same story for the scores:
     #
@@ -165,6 +164,12 @@ def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_
     scores = scores[order]
     if DEBUG:
         print 'proposals shape 3:', proposals.shape
+        from scipy.stats import describe
+        print describe(scores)
+
+    # batch_inds = np.zeros((proposals.shape[0], 1), dtype=np.float32)
+    # blob = np.hstack((batch_inds, proposals.astype(np.float32, copy=False)))
+    # return blob
 
     # 6. apply nms (e.g. threshold = 0.7)
     # 7. take after_nms_topN (e.g. 300)

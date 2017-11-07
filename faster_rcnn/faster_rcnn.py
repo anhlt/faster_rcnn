@@ -26,7 +26,7 @@ def nms_detections(pred_boxes, scores, nms_thresh, inds=None):
 
 class RPN(nn.Module):
     _feat_stride = [16, ]
-    anchor_scales = [8, 16, 32]
+    anchor_scales = [4, 8, 16, 32]
 
     def __init__(self):
         super(RPN, self).__init__()
@@ -42,12 +42,7 @@ class RPN(nn.Module):
 
     @property
     def loss(self):
-        print "--"
-        print self.cross_entropy
-        print self.loss_box
-        print "--"
-
-        return self.cross_entropy + self.loss_box
+        return self.cross_entropy + 10 * self.loss_box
 
     def forward(self,
                 im_data,
@@ -63,7 +58,6 @@ class RPN(nn.Module):
         # (N, 2, -1, H) # Because Softmax take place over dimension 1
         rpn_cls_prob = F.softmax(rpn_cls_score_reshape)
         rpn_cls_prob_reshape = self.reshape_layer(rpn_cls_prob, len(self.anchor_scales) * 3 * 2)  # (N , H , W , Ax2)
-
         # rpn boxes
         rpn_bbox_pred = self.bbox_conv(rpn_conv1)
 
@@ -89,18 +83,19 @@ class RPN(nn.Module):
         rpn_cls_score = rpn_cls_score_reshape.permute(
             0, 2, 3, 1).contiguous().view(-1, 2)
         rpn_label = rpn_data[0].view(-1)
+        print rpn_label.size()
 
         rpn_keep = Variable(
             rpn_label.data.ne(-1).nonzero().squeeze()).cuda()
+        print rpn_keep.size()
+        
         rpn_cls_score = torch.index_select(rpn_cls_score, 0, rpn_keep)
         rpn_label = torch.index_select(rpn_label, 0, rpn_keep)
+
         rpn_cross_entropy = F.cross_entropy(rpn_cls_score, rpn_label)
         # box loss
         rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_inside_weights = rpn_data[1:]
-        rpn_loss_box = smooth_l1_loss(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_inside_weights, sigma=3.0, dim=[1, 2, 3])
-
-        print 'rpn_loss_box', rpn_loss_box
-        print 'rpn_cross_entropy', rpn_cross_entropy
+        rpn_loss_box = smooth_l1_loss(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_inside_weights, sigma=3.0)
         return rpn_cross_entropy, rpn_loss_box
 
     @staticmethod

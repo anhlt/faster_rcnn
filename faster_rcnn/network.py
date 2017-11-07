@@ -62,7 +62,7 @@ class FC(nn.Module):
         return x
 
 
-def smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights, sigma=1.0, dim=[1]):
+def smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights, sigma=1.0):
     sigma_2 = sigma ** 2
     box_diff = bbox_pred - bbox_targets
     in_box_diff = bbox_inside_weights * box_diff
@@ -72,9 +72,7 @@ def smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_we
         + (abs_in_box_diff - (0.5 / sigma_2)) * (1. - smoothL1_sign)
     out_loss_box = bbox_outside_weights * in_loss_box
     loss_box = out_loss_box
-    for i in sorted(dim, reverse=True):
-        loss_box = loss_box.sum(i)
-    loss_box = loss_box.mean()
+    loss_box = loss_box.sum() / bbox_pred.size()[0]
     return loss_box
 
 

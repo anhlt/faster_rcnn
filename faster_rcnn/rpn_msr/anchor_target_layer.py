@@ -15,6 +15,7 @@ from ..fastrcnn.bbox_transform import bbox_transform
 from ..config import cfg
 
 DEBUG = True
+np.random.seed(None)
 
 
 def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride=[16, ],
@@ -141,6 +142,7 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride=[16, ],
     gt_max_overlaps = overlaps[gt_argmax_overlaps,
                                np.arange(overlaps.shape[1])]
     gt_argmax_overlaps = np.where(overlaps == gt_max_overlaps)[0]
+    print 'gt_argmax_overlaps', gt_argmax_overlaps.shape
 
     if not cfg.TRAIN.RPN_CLOBBER_POSITIVES:
         # assign bg labels first so that positive labels can clobber them
@@ -156,40 +158,49 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride=[16, ],
         labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
 
     # subsample positive labels if we have too many
+
+    num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)
     if DEBUG:
         print 'cfg.TRAIN.RPN_FG_FRACTION , cfg.TRAIN.RPN_BATCHSIZE', cfg.TRAIN.RPN_FG_FRACTION, cfg.TRAIN.RPN_BATCHSIZE
-    num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)
+        unique, counts = np.unique(labels, return_counts=True)
+        print 'label count: ', dict(zip(unique, counts))
+
     fg_inds = np.where(labels == 1)[0]
     if len(fg_inds) > num_fg:
         disable_inds = npr.choice(
             fg_inds, size=(len(fg_inds) - num_fg), replace=False)
+        print 'disable_inds', disable_inds
         labels[disable_inds] = -1
 
     # subsample negative labels if we have too many
     num_bg = cfg.TRAIN.RPN_BATCHSIZE - np.sum(labels == 1)
     bg_inds = np.where(labels == 0)[0]
+    print 'bg_inds',  len(bg_inds)
     if len(bg_inds) > num_bg:
         disable_inds = npr.choice(
             bg_inds, size=(len(bg_inds) - num_bg), replace=False)
+        print 'disable_inds', disable_inds
         labels[disable_inds] = -1
         if DEBUG:
             print "was %s inds, disabling %s, now %s inds" % (len(bg_inds), len(disable_inds), np.sum(labels == 0))
 
-    # bbox_targets = np.zeros((len(inds_inside), 4), dtype=np.float32)
+    bbox_targets = np.zeros((len(inds_inside), 4), dtype=np.float32)
     bbox_targets = _compute_targets(anchors, gt_boxes[argmax_overlaps, :])
 
     bbox_inside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
     bbox_inside_weights[labels == 1, :] = np.array(
         cfg.TRAIN.RPN_BBOX_INSIDE_WEIGHTS)
 
+    if DEBUG:
+        unique, counts = np.unique(bbox_inside_weights, return_counts=True)
+        print 'bbox_inside_weights count: ', dict(zip(unique, counts))
+
     bbox_outside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
     if cfg.TRAIN.RPN_POSITIVE_WEIGHT < 0:
         # uniform weighting of examples (given non-uniform sampling)
-        # num_examples = np.sum(labels >= 0) + 1
-        # positive_weights = np.ones((1, 4)) * 1.0 / num_examples
-        # negative_weights = np.ones((1, 4)) * 1.0 / num_examples
-        positive_weights = np.ones((1, 4))
-        negative_weights = np.zeros((1, 4))
+        num_examples = np.sum(labels >= 0) + 1
+        positive_weights = np.ones((1, 4)) * 1.0 / num_examples
+        negative_weights = np.ones((1, 4)) * 1.0 / num_examples
     else:
         assert ((cfg.TRAIN.RPN_POSITIVE_WEIGHT > 0) &
                 (cfg.TRAIN.RPN_POSITIVE_WEIGHT < 1))
@@ -199,6 +210,10 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride=[16, ],
                             (np.sum(labels == 0)) + 1)
     bbox_outside_weights[labels == 1, :] = positive_weights
     bbox_outside_weights[labels == 0, :] = negative_weights
+
+    if DEBUG:
+        unique, counts = np.unique(bbox_outside_weights, return_counts=True)
+        print 'bbox_outside_weights count: ', dict(zip(unique, counts))
 
     if DEBUG:
         _sums += bbox_targets[labels == 1, :].sum(axis=0)
@@ -212,16 +227,10 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride=[16, ],
         print stds
 
     # map up to original set of anchors
-    print "---------------"
-    print labels.shape
     labels = _unmap(labels, total_anchors, inds_inside, fill=-1)
-    print labels.shape
-    print "---------------"
     bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside, fill=0)
-    bbox_inside_weights = _unmap(
-        bbox_inside_weights, total_anchors, inds_inside, fill=0)
-    bbox_outside_weights = _unmap(
-        bbox_outside_weights, total_anchors, inds_inside, fill=0)
+    bbox_inside_weights = _unmap(bbox_inside_weights, total_anchors, inds_inside, fill=0)
+    bbox_outside_weights = _unmap(bbox_outside_weights, total_anchors, inds_inside, fill=0)
 
     if DEBUG:
         print 'rpn: max max_overlap', np.max(max_overlaps)
@@ -285,7 +294,4 @@ def _compute_targets(ex_rois, gt_rois):
     assert ex_rois.shape[1] == 4
     assert gt_rois.shape[1] == 5
 
-    return bbox_transform(ex_rois,
-                          gt_rois[:, :4]).astype(
-        np.float32,
-        copy=False)
+    return bbox_transform(ex_rois, gt_rois[:, :4]).astype(np.float32, copy=False)
