@@ -93,6 +93,14 @@ def np_to_variable(x, is_cuda=True, dtype=torch.FloatTensor):
     return v
 
 
+def tensor_to_variable(x, is_cuda=True):
+    v = Variable(x)
+    if is_cuda:
+        v = v.cuda()
+
+    return v
+
+
 def clip_gradient(model, clip_norm):
     """Computes a gradient clipping coefficient based on gradient norm."""
     totalnorm = 0

@@ -1,1 +1,0 @@
-/opt/conda/bin/jupyter notebook --notebook-dir=/data/ --no-browser --port=8080 --ip='*'

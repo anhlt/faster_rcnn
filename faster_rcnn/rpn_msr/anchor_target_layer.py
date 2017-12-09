@@ -15,9 +15,10 @@ from ..fastrcnn.bbox_transform import bbox_transform
 from ..config import cfg
 
 DEBUG = False
+np.random.seed(None)
 
 
-def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_info, _feat_stride=[16, ],
+def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride=[16, ],
                         anchor_scales=[4, 8, 16, 32]):
     """
     Assign anchors to ground-truth targets. Produces anchor classification
@@ -26,8 +27,6 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_i
     ----------
     rpn_cls_score: for pytorch (1, Ax2, H, W) bg/fg scores of previous conv layer
     gt_boxes: (G, 5) vstack of [x1, y1, x2, y2, class]
-    gt_ishard: (G, 1), 1 or 0 indicates difficult or not
-    dontcare_areas: (D, 4), some areas may contains small objs but no labelling. D may be 0
     im_info: a list of [image_height, image_width, scale_ratios]
     _feat_stride: the downsampling ratio of feature map to the original input image
     anchor_scales: the scales to the basic_anchor (basic anchor is [16, 16])
@@ -45,6 +44,8 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_i
     _num_anchors = _anchors.shape[0]
 
     if DEBUG:
+        print 'rpn_cls_score.shape', rpn_cls_score.shape
+        print 'image info', im_info
         print 'anchors:'
         print _anchors
         print 'anchor shapes:'
@@ -156,7 +157,13 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_i
         labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
 
     # subsample positive labels if we have too many
+
     num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)
+    if DEBUG:
+        print 'cfg.TRAIN.RPN_FG_FRACTION , cfg.TRAIN.RPN_BATCHSIZE', cfg.TRAIN.RPN_FG_FRACTION, cfg.TRAIN.RPN_BATCHSIZE
+        unique, counts = np.unique(labels, return_counts=True)
+        print 'label count: ', dict(zip(unique, counts))
+
     fg_inds = np.where(labels == 1)[0]
     if len(fg_inds) > num_fg:
         disable_inds = npr.choice(
@@ -180,23 +187,27 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_i
     bbox_inside_weights[labels == 1, :] = np.array(
         cfg.TRAIN.RPN_BBOX_INSIDE_WEIGHTS)
 
+    if DEBUG:
+        unique, counts = np.unique(bbox_inside_weights, return_counts=True)
+        print 'bbox_inside_weights count: ', dict(zip(unique, counts))
+
     bbox_outside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
     if cfg.TRAIN.RPN_POSITIVE_WEIGHT < 0:
         # uniform weighting of examples (given non-uniform sampling)
-        # num_examples = np.sum(labels >= 0) + 1
-        # positive_weights = np.ones((1, 4)) * 1.0 / num_examples
-        # negative_weights = np.ones((1, 4)) * 1.0 / num_examples
-        positive_weights = np.ones((1, 4))
-        negative_weights = np.zeros((1, 4))
+        num_examples = np.sum(labels >= 0) + 1
+        positive_weights = np.ones((1, 4)) * 1.0 / num_examples
+        negative_weights = np.ones((1, 4)) * 1.0 / num_examples
     else:
         assert ((cfg.TRAIN.RPN_POSITIVE_WEIGHT > 0) &
                 (cfg.TRAIN.RPN_POSITIVE_WEIGHT < 1))
-        positive_weights = (cfg.TRAIN.RPN_POSITIVE_WEIGHT /
-                            (np.sum(labels == 1)) + 1)
-        negative_weights = ((1.0 - cfg.TRAIN.RPN_POSITIVE_WEIGHT) /
-                            (np.sum(labels == 0)) + 1)
+        positive_weights = (cfg.TRAIN.RPN_POSITIVE_WEIGHT / (np.sum(labels == 1) + 1))
+        negative_weights = ((1.0 - cfg.TRAIN.RPN_POSITIVE_WEIGHT) / (np.sum(labels == 0) + 1))
     bbox_outside_weights[labels == 1, :] = positive_weights
     bbox_outside_weights[labels == 0, :] = negative_weights
+
+    if DEBUG:
+        unique, counts = np.unique(bbox_outside_weights, return_counts=True)
+        print 'bbox_outside_weights count: ', dict(zip(unique, counts))
 
     if DEBUG:
         _sums += bbox_targets[labels == 1, :].sum(axis=0)
@@ -209,14 +220,6 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_i
         print 'stdevs:'
         print stds
 
-    # map up to original set of anchors
-    labels = _unmap(labels, total_anchors, inds_inside, fill=-1)
-    bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside, fill=0)
-    bbox_inside_weights = _unmap(
-        bbox_inside_weights, total_anchors, inds_inside, fill=0)
-    bbox_outside_weights = _unmap(
-        bbox_outside_weights, total_anchors, inds_inside, fill=0)
-
     if DEBUG:
         print 'rpn: max max_overlap', np.max(max_overlaps)
         print 'rpn: num_positive', np.sum(labels == 1)
@@ -227,6 +230,12 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_i
         print 'rpn: num_positive avg', _fg_sum / _count
         print 'rpn: num_negative avg', _bg_sum / _count
 
+    # map up to original set of anchors
+    labels = _unmap(labels, total_anchors, inds_inside, fill=-1)
+    bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside, fill=0)
+    bbox_inside_weights = _unmap(bbox_inside_weights, total_anchors, inds_inside, fill=0)
+    bbox_outside_weights = _unmap(bbox_outside_weights, total_anchors, inds_inside, fill=0)
+    
     # labels
     # pdb.set_trace()
     labels = labels.reshape((1, height, width, A))
@@ -279,7 +288,4 @@ def _compute_targets(ex_rois, gt_rois):
     assert ex_rois.shape[1] == 4
     assert gt_rois.shape[1] == 5
 
-    return bbox_transform(ex_rois,
-                          gt_rois[:, :4]).astype(
-        np.float32,
-        copy=False)
+    return bbox_transform(ex_rois, gt_rois[:, :4]).astype(np.float32, copy=False)

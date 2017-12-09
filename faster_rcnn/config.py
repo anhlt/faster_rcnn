@@ -164,8 +164,7 @@ __C.TRAIN.RPN_BBOX_INSIDE_WEIGHTS = (1.0, 1.0, 1.0, 1.0)
 # Give the positive RPN examples weight of p * 1 / {num positives}
 # and give negatives a weight of (1 - p)
 # Set to -1.0 to use uniform example weighting
-__C.TRAIN.RPN_POSITIVE_WEIGHT = -1.0
-# __C.TRAIN.RPN_POSITIVE_WEIGHT = 0.5
+__C.TRAIN.RPN_POSITIVE_WEIGHT = 0.9
 
 
 #
@@ -199,11 +198,11 @@ __C.TEST.HAS_RPN = True
 __C.TEST.PROPOSAL_METHOD = 'mcg'
 
 ## NMS threshold used on RPN proposals
-__C.TEST.RPN_NMS_THRESH = 0.7
+__C.TEST.RPN_NMS_THRESH = 0.8
 ## Number of top scoring boxes to keep before apply NMS to RPN proposals
 __C.TEST.RPN_PRE_NMS_TOP_N = 12000
 ## Number of top scoring boxes to keep after applying NMS to RPN proposals
-__C.TEST.RPN_POST_NMS_TOP_N = 2000
+__C.TEST.RPN_POST_NMS_TOP_N = 300
 # Proposal height and width both need to be greater than RPN_MIN_SIZE (at orig image scale)
 __C.TEST.RPN_MIN_SIZE = 16
 
