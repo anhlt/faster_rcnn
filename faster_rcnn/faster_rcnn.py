@@ -14,6 +14,8 @@ from .utils.blob import im_list_to_blob
 import cv2
 from network import smooth_l1_loss
 from .rpn_msr.generate_anchors import generate_anchors
+from PIL import Image
+from torchvision import transforms
 
 
 def nms_detections(pred_boxes, scores, nms_thresh, inds=None):
@@ -164,7 +166,7 @@ class RPN(nn.Module):
 
         features, rpn_bbox_pred, rpn_cls_score = self._computer_forward(im_data)
         height, width = rpn_cls_score.shape[-2:]
-        rpn_bbox_pred =  rpn_bbox_pred.data.cpu().numpy()
+        rpn_bbox_pred = rpn_bbox_pred.data.cpu().numpy()
         _anchors = generate_anchors(scales=np.array(self.anchor_scales))
         _num_anchors = _anchors.shape[0]
         im_info = im_info[0]
@@ -176,12 +178,6 @@ class RPN(nn.Module):
         shifts = np.vstack((shift_x.ravel(), shift_y.ravel(),
                             shift_x.ravel(), shift_y.ravel())).transpose()
 
-        # Enumerate all shifted anchors:
-        #
-        # add A anchors (1, A, 4) to
-        # cell K shifts (K, 1, 4) to get
-        # shift anchors (K, A, 4)
-        # reshape to (K*A, 4) shifted anchors
         A = _num_anchors
         K = shifts.shape[0]
         anchors = _anchors.reshape((1, A, 4)) + \
@@ -189,10 +185,14 @@ class RPN(nn.Module):
         anchors = anchors.reshape((K * A, 4))
         bbox_deltas = bbox_deltas.transpose((0, 2, 3, 1)).reshape((-1, 4))
 
-
         # Convert anchors into proposals via bbox transformations
         proposals = bbox_transform_inv(anchors, bbox_deltas)
         return proposals
+
+    def predict_rois(self, im_data, im_info):
+        self.eval()
+        _, rois = self(im_data, im_info)
+        return rois
 
 
 class FasterRCNN(nn.Module):
@@ -224,24 +224,21 @@ class FasterRCNN(nn.Module):
     def loss(self):
         return self.cross_entropy + self.loss_box
 
-    def forward(self, im_data, im_info, gt_boxes=None):
-        # features, rois = self.rpn(
-        #     im_data, im_info, gt_boxes)
+    def forward(self, im_data, im_info, gt_boxes=None, rois=None):
 
-        # features.size = (1 , W, H, 512)
-        # rois
-        rois = gt_boxes[gt_boxes[:, 4] == 0.]
-        rois = np.roll(rois, 1)
-        rois = np_to_variable(rois)
-        gt_boxes = gt_boxes[gt_boxes[:, 4] != 0.]
+        im_data = tensor_to_variable(im_data)
+        if rois is None:
+            features, rois = self.rpn(
+                im_data, im_info, gt_boxes)
+        else:
+            features = self.features(im_data)
+
+        rois = tensor_to_variable(rois)
+
         if self.training:
             roi_data = self.proposal_target_layer(
                 rois, gt_boxes, self.n_classes)
             rois = roi_data[0]
-
-        im_data = np_to_variable(im_data)
-        im_data = im_data.permute(0, 3, 1, 2)
-        features = self.features(im_data)
 
         # Roi pool
         pooled_features = self.roi_pool(features, rois)
@@ -340,27 +337,23 @@ class FasterRCNN(nn.Module):
         box_deltas = np.asarray([
             box_deltas[i, (inds[i] * 4): (inds[i] * 4 + 4)] for i in range(len(inds))
         ], dtype=np.float)
-        boxes = rois.data.cpu().numpy()[keep, 1:5] / im_info[0][2]
+        boxes = rois.data.cpu().numpy()[keep, 1:5]
         pred_boxes = bbox_transform_inv(boxes, box_deltas)
         if clip:
             pred_boxes = clip_boxes(pred_boxes, im_shape)
-
         if nms and pred_boxes.shape[0] > 0:
             pred_boxes, scores, inds = nms_detections(
-                pred_boxes, scores, 0.1, inds=inds)
+                pred_boxes, scores, 0.3, inds=inds)
         self.classes = np.array(self.classes)
         return pred_boxes, scores, self.classes[inds], boxes
 
     def detect(self, image, thr=0.5, rois=None):
-        im_data, im_scales = self.get_image_blob(image)
-        im_info = np.array(
-            [[im_data.shape[1], im_data.shape[2], im_scales[0]]],
-            dtype=np.float32)
-
-        cls_prob, bbox_pred, rois = self(im_data, im_info)
+        self.eval()
+        im_data, im_info = self.get_image_blob(image)
+        cls_prob, bbox_pred, rois = self(im_data, im_info, rois=rois)
         pred_boxes, scores, classes, rois = \
             self.interpret_faster_rcnn(
-                cls_prob, bbox_pred, rois, im_info, image.shape, min_score=thr, nms=True)
+                cls_prob, bbox_pred, rois, im_info, im_info[0][:2], min_score=thr, nms=True)
         return pred_boxes, scores, classes, rois
 
     def get_image_blob(self, im):
@@ -372,27 +365,18 @@ class FasterRCNN(nn.Module):
             im_scale_factors (list): list of image scales (relative to im) used
                 in the image pyramid
         """
-        im_orig = im.astype(np.float32, copy=True)
-        # im_orig -= self.PIXEL_MEANS
+        transform = transforms.Compose([
+            transforms.Resize(600),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [
+                0.229, 0.224, 0.225])])
 
-        im_shape = im_orig.shape
-        im_size_min = np.min(im_shape[0:2])
-        im_size_max = np.max(im_shape[0:2])
+        img = Image.open(im).convert('RGB')
+        origin_size = img.size
+        img = transform(img)
+        img = img.unsqueeze(0)
+        target_size = tuple(img.size())
+        im_info = np.array(
+            [[float(target_size[2]), float(target_size[3]), 600. / min(origin_size)]])
 
-        processed_ims = []
-        im_scale_factors = []
-
-        for target_size in self.SCALES:
-            im_scale = float(target_size) / float(im_size_min)
-            # Prevent the biggest axis from being more than MAX_SIZE
-            if np.round(im_scale * im_size_max) > self.MAX_SIZE:
-                im_scale = float(self.MAX_SIZE) / float(im_size_max)
-            im = cv2.resize(im_orig, None, None, fx=im_scale, fy=im_scale,
-                            interpolation=cv2.INTER_LINEAR)
-            im_scale_factors.append(im_scale)
-            processed_ims.append(im)
-
-        # Create a blob to hold the input images
-        blob = im_list_to_blob(processed_ims)
-
-        return blob, np.array(im_scale_factors)
+        return img, im_info
