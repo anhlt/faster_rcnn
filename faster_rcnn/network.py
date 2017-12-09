@@ -15,16 +15,13 @@ class Conv2d(nn.Module):
                  stride=1,
                  relu=True,
                  same_padding=False,
-                 bn=False,
-                 init_param=True
-                 ):
+                 bn=False):
 
         super(Conv2d, self).__init__()
         padding = int((kernel_size - 1) / 2) if same_padding else 0
         self.conv = nn.Conv2d(in_channels, out_channels,
                               kernel_size, stride, padding=padding)
-        if init_param:
-            nn.init.xavier_normal(self.conv.weight)
+        nn.init.xavier_normal(self.conv.weight)
         self.bn = nn.BatchNorm2d(
             out_channels, eps=0.001,
             momentum=0,
@@ -62,7 +59,7 @@ class FC(nn.Module):
         return x
 
 
-def smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights, sigma=1.0):
+def smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights, sigma=1.0, dim=[1]):
     sigma_2 = sigma ** 2
     box_diff = bbox_pred - bbox_targets
     in_box_diff = bbox_inside_weights * box_diff
@@ -72,7 +69,9 @@ def smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_we
         + (abs_in_box_diff - (0.5 / sigma_2)) * (1. - smoothL1_sign)
     out_loss_box = bbox_outside_weights * in_loss_box
     loss_box = out_loss_box
-    loss_box = loss_box.sum() / bbox_pred.size()[0]
+    for i in sorted(dim, reverse=True):
+        loss_box = loss_box.sum(i)
+    loss_box = loss_box.mean()
     return loss_box
 
 
@@ -91,6 +90,14 @@ def np_to_variable(x, is_cuda=True, dtype=torch.FloatTensor):
     v = Variable(torch.from_numpy(x).type(dtype))
     if is_cuda:
         v = v.cuda()
+    return v
+
+
+def tensor_to_variable(x, is_cuda=True):
+    v = Variable(x)
+    if is_cuda:
+        v = v.cuda()
+
     return v
 
 

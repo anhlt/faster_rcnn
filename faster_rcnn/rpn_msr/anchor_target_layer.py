@@ -14,7 +14,7 @@ from ..utils.cython_bbox import bbox_overlaps
 from ..fastrcnn.bbox_transform import bbox_transform
 from ..config import cfg
 
-DEBUG = True
+DEBUG = False
 np.random.seed(None)
 
 
@@ -142,7 +142,6 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride=[16, ],
     gt_max_overlaps = overlaps[gt_argmax_overlaps,
                                np.arange(overlaps.shape[1])]
     gt_argmax_overlaps = np.where(overlaps == gt_max_overlaps)[0]
-    print 'gt_argmax_overlaps', gt_argmax_overlaps.shape
 
     if not cfg.TRAIN.RPN_CLOBBER_POSITIVES:
         # assign bg labels first so that positive labels can clobber them
@@ -169,22 +168,19 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride=[16, ],
     if len(fg_inds) > num_fg:
         disable_inds = npr.choice(
             fg_inds, size=(len(fg_inds) - num_fg), replace=False)
-        print 'disable_inds', disable_inds
         labels[disable_inds] = -1
 
     # subsample negative labels if we have too many
     num_bg = cfg.TRAIN.RPN_BATCHSIZE - np.sum(labels == 1)
     bg_inds = np.where(labels == 0)[0]
-    print 'bg_inds',  len(bg_inds)
     if len(bg_inds) > num_bg:
         disable_inds = npr.choice(
             bg_inds, size=(len(bg_inds) - num_bg), replace=False)
-        print 'disable_inds', disable_inds
         labels[disable_inds] = -1
         if DEBUG:
             print "was %s inds, disabling %s, now %s inds" % (len(bg_inds), len(disable_inds), np.sum(labels == 0))
 
-    bbox_targets = np.zeros((len(inds_inside), 4), dtype=np.float32)
+    # bbox_targets = np.zeros((len(inds_inside), 4), dtype=np.float32)
     bbox_targets = _compute_targets(anchors, gt_boxes[argmax_overlaps, :])
 
     bbox_inside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
@@ -204,10 +200,8 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride=[16, ],
     else:
         assert ((cfg.TRAIN.RPN_POSITIVE_WEIGHT > 0) &
                 (cfg.TRAIN.RPN_POSITIVE_WEIGHT < 1))
-        positive_weights = (cfg.TRAIN.RPN_POSITIVE_WEIGHT /
-                            (np.sum(labels == 1)) + 1)
-        negative_weights = ((1.0 - cfg.TRAIN.RPN_POSITIVE_WEIGHT) /
-                            (np.sum(labels == 0)) + 1)
+        positive_weights = (cfg.TRAIN.RPN_POSITIVE_WEIGHT / (np.sum(labels == 1) + 1))
+        negative_weights = ((1.0 - cfg.TRAIN.RPN_POSITIVE_WEIGHT) / (np.sum(labels == 0) + 1))
     bbox_outside_weights[labels == 1, :] = positive_weights
     bbox_outside_weights[labels == 0, :] = negative_weights
 
@@ -226,12 +220,6 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride=[16, ],
         print 'stdevs:'
         print stds
 
-    # map up to original set of anchors
-    labels = _unmap(labels, total_anchors, inds_inside, fill=-1)
-    bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside, fill=0)
-    bbox_inside_weights = _unmap(bbox_inside_weights, total_anchors, inds_inside, fill=0)
-    bbox_outside_weights = _unmap(bbox_outside_weights, total_anchors, inds_inside, fill=0)
-
     if DEBUG:
         print 'rpn: max max_overlap', np.max(max_overlaps)
         print 'rpn: num_positive', np.sum(labels == 1)
@@ -242,6 +230,12 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride=[16, ],
         print 'rpn: num_positive avg', _fg_sum / _count
         print 'rpn: num_negative avg', _bg_sum / _count
 
+    # map up to original set of anchors
+    labels = _unmap(labels, total_anchors, inds_inside, fill=-1)
+    bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside, fill=0)
+    bbox_inside_weights = _unmap(bbox_inside_weights, total_anchors, inds_inside, fill=0)
+    bbox_outside_weights = _unmap(bbox_outside_weights, total_anchors, inds_inside, fill=0)
+    
     # labels
     # pdb.set_trace()
     labels = labels.reshape((1, height, width, A))

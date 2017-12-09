@@ -99,3 +99,4 @@ local_settings.py
 sftp-config.json
 
 *.pkl
+data/

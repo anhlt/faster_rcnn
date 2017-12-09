@@ -3,16 +3,17 @@ services:
     python:
         build:
             context: .
-            dockerfile: Dockerfile.gpu
+            dockerfile: Dockerfile
+        container_name : faster_rcnn 
         image: "tuananhbk/mlpractice:gpu" 
         ports:
-            - "8081:8081"
+            - "8889:8889"
         volumes:
             - ".:/data"
         user: anh
         working_dir: /data
         tty: true
-        command: jupyter notebook --ip=0.0.0.0 --port=8081 --NotebookApp.password='sha1:4018b457b8a9:84c65a176a549c58609c3cf38fa50b4b1b12b808'
+        command: jupyter notebook --ip=0.0.0.0 --port=8889 --NotebookApp.password='sha1:4018b457b8a9:84c65a176a549c58609c3cf38fa50b4b1b12b808'
         links:
             - "crayon"
     anaconda:
@@ -31,4 +32,3 @@ services:
         image: "alband/crayon"
         ports:
             - 8888:8888
-            - 8889:8889

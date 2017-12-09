@@ -2,13 +2,16 @@ from torchvision.datasets import CocoDetection
 import os
 import numpy as np
 from .blob import im_list_to_blob, prep_im_for_blob
-import cv2
+from scipy.misc import imread
 from ..config import cfg
 import scipy.io as io
 import scipy
 from .ds_utils import unique_boxes, filter_small_boxes, validate_boxes
 import logging
 from ..utils.cython_bbox import bbox_overlaps
+from torchvision import transforms
+from torchvision.transforms import Resize
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +65,16 @@ class CocoData(CocoDetection):
         self._coco_cat_id_to_class_index = dict([(self._class_to_coco_cat_id[
             class_name], self._class_to_index[class_name]) for class_name in self._classes[1:]])
 
+        if transform is not None:
+            self.transform = transform
+        else:
+            self.transform = transforms.Compose([
+                transforms.Resize(600),
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [
+                                     0.229, 0.224, 0.225])
+            ])
+
     def _get_box_file(self, index):
         # first 14 chars / first 22 chars / all chars + .mat
         # COCO_val2014_0/COCO_val2014_000000447/COCO_val2014_000000447991.mat
@@ -92,8 +105,18 @@ class CocoData(CocoDetection):
         width = image_info['width']
         height = image_info['height']
         # need to fixed
-        im_blob, im_info = _get_image_blob(cv2.imread(im_file_path))
-        blobs = {'data': im_blob}
+
+        # im_blob, im_info = _get_image_blob(imread(im_file_path))
+        img = Image.open(im_file_path).convert('RGB')
+        origin_size = img.size
+        img = self.transform(img)
+        img = img.unsqueeze(0)
+        target_size = tuple(img.size())
+        im_info = np.array(
+            [[float(target_size[2]), float(target_size[3]), 600. / min(origin_size)]])
+
+        blobs = {}
+        blobs['tensor'] = img
         blobs['im_name'] = os.path.basename(im_file_path)
         blobs['image_info'] = image_info
 
