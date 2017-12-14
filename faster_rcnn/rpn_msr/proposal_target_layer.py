@@ -96,6 +96,7 @@ def _sample_rois(all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_clas
         np.ascontiguousarray(gt_boxes[:, :4], dtype=np.float))
     gt_assignment = overlaps.argmax(axis=1)  # R
     max_overlaps = overlaps.max(axis=1)  # R
+
     if DEBUG:
         print 'max max_overlap', np.max(max_overlaps)
 
@@ -119,8 +120,6 @@ def _sample_rois(all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_clas
     # Sample background regions without replacement
     if bg_inds.size > 0:
         bg_inds = npr.choice(bg_inds, size=bg_rois_per_this_image, replace=False)
-    # print bg_inds
-    # print fg_inds
     # The indices that we're selecting (both fg and bg)
     keep_inds = np.append(fg_inds, bg_inds)
     # Select sampled values from various arrays:

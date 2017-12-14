@@ -208,7 +208,7 @@ class FasterRCNN(nn.Module):
         self.n_classes = len(classes)
 
         self.features = vgg16()
-        # self.rpn = RPN()
+        self.rpn = RPN()
         self.roi_pool = RoIPool(7, 7, 1.0 / 16)
         self.fc6 = FC(512 * 7 * 7, 4096)
         self.fc7 = FC(4096, 4096)
@@ -222,18 +222,17 @@ class FasterRCNN(nn.Module):
 
     @property
     def loss(self):
-        return self.cross_entropy + self.loss_box
+        return self.cross_entropy + 10 * self.loss_box + self.rpn.cross_entropy + 10 * self.rpn.loss_box
 
     def forward(self, im_data, im_info, gt_boxes=None, rois=None):
 
-        im_data = tensor_to_variable(im_data)
         if rois is None:
             features, rois = self.rpn(
                 im_data, im_info, gt_boxes)
         else:
+            rois = tensor_to_variable(rois)
+            im_data = tensor_to_variable(im_data)
             features = self.features(im_data)
-
-        rois = tensor_to_variable(rois)
 
         if self.training:
             roi_data = self.proposal_target_layer(
@@ -327,7 +326,7 @@ class FasterRCNN(nn.Module):
         # find class
         scores, inds = cls_prob.data.max(1)
         scores, inds = scores.cpu().numpy(), inds.cpu().numpy()
-
+        
         keep = np.where((inds > 0) & (scores >= min_score))
         scores, inds = scores[keep], inds[keep]
 
@@ -354,7 +353,7 @@ class FasterRCNN(nn.Module):
         pred_boxes, scores, classes, rois = \
             self.interpret_faster_rcnn(
                 cls_prob, bbox_pred, rois, im_info, im_info[0][:2], min_score=thr, nms=True)
-        return pred_boxes, scores, classes, rois
+        return pred_boxes, scores, classes, rois, im_data
 
     def get_image_blob(self, im):
         """Converts an image into a network input.
