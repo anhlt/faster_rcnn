@@ -7,11 +7,15 @@ An another pytorch implementation of Faster RCNN base on [https://github.com/lon
 
 1. Install docker and Nvidia-docker
 2. Git clone
-    git clone https:github.com/anhlt/faster_rcnn
-    
+
+```
+git clone https:github.com/anhlt/faster_rcnn
+```    
+
 3. Using `docker-compose`
-    docker-compose up --build
-    
+```
+docker-compose up --build
+```    
     
 ## Modules
 
