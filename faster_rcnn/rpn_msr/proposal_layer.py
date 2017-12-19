@@ -58,12 +58,7 @@ def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_
 
     _anchors = generate_anchors(scales=np.array(anchor_scales))
     _num_anchors = _anchors.shape[0]
-    # rpn_cls_prob_reshape = np.transpose(rpn_cls_prob_reshape,[0,3,1,2]) #-> (1 , 2xA, H , W)
-    # rpn_bbox_pred = np.transpose(rpn_bbox_pred,[0,3,1,2])              # ->
-    # (1 , Ax4, H , W)
 
-    # rpn_cls_prob_reshape = np.transpose(np.reshape(rpn_cls_prob_reshape,[1,rpn_cls_prob_reshape.shape[0],rpn_cls_prob_reshape.shape[1],rpn_cls_prob_reshape.shape[2]]),[0,3,2,1])
-    # rpn_bbox_pred = np.transpose(rpn_bbox_pred,[0,3,2,1])
     im_info = im_info[0]
 
     assert rpn_cls_prob_reshape.shape[0] == 1, \
@@ -72,9 +67,6 @@ def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_
     # cfg_key = 'TEST'
     pre_nms_topN = cfg[cfg_key].RPN_PRE_NMS_TOP_N
     post_nms_topN = cfg[cfg_key].RPN_POST_NMS_TOP_N
-    # pre_nms_topN = 12000
-    # post_nms_topN = 2000
-
     nms_thresh = cfg[cfg_key].RPN_NMS_THRESH
     min_size = cfg[cfg_key].RPN_MIN_SIZE
 
@@ -92,6 +84,7 @@ def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_
     height, width = scores.shape[-2:]
 
     if DEBUG:
+        print 'height, width' , height, width
         print 'score map size: {}'.format(scores.shape)
 
     # Enumerate all shifts
@@ -112,6 +105,9 @@ def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_
     anchors = _anchors.reshape((1, A, 4)) + \
         shifts.reshape((1, K, 4)).transpose((1, 0, 2))
     anchors = anchors.reshape((K * A, 4))
+
+    if DEBUG:
+        print 'anchors' , anchors.shape
     # batch_inds = np.zeros((anchors.shape[0], 1), dtype=np.float32)
     # blob = np.hstack((batch_inds, anchors.astype(np.float32, copy=False)))
     # return blob

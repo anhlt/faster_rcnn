@@ -13,7 +13,6 @@ from .fastrcnn.nms_wrapper import nms
 from .utils.blob import im_list_to_blob
 import cv2
 from network import smooth_l1_loss
-from .rpn_msr.generate_anchors import generate_anchors
 from PIL import Image
 from torchvision import transforms
 
@@ -48,7 +47,6 @@ class RPN(nn.Module):
         return self.cross_entropy + 10 * self.loss_box
 
     def _computer_forward(self, im_data):
-                # im_data = im_data.permute(0, 3, 1, 2)  # (N, 3, W, H)
         im_data = tensor_to_variable(im_data)
         features = self.features(im_data)  # (N, 512, W, H)
         rpn_conv1 = self.conv1(features)  # (N, 512, W, H)
@@ -64,10 +62,13 @@ class RPN(nn.Module):
                 im_info, gt_boxes=None):
         features, rpn_bbox_pred, rpn_cls_score = self._computer_forward(im_data)
 
-        rpn_cls_score_reshape = self.reshape_layer(rpn_cls_score, 2)  # (N, 2, -1, H)
-        # (N, 2, -1, H) # Because Softmax take place over dimension 1
-        rpn_cls_prob = F.softmax(rpn_cls_score_reshape)
-        rpn_cls_prob_reshape = self.reshape_layer(rpn_cls_prob, len(self.anchor_scales) * 3 * 2)  # (N , H , W , Ax2)
+        #rpn_cls_score : batch * (num_anchors * 2) * h * w = 1 * (4 * 3 * 2) * h * w
+
+        rpn_cls_score_reshape = rpn_cls_score.view(1, 2, -1, rpn_cls_score.size()[-1]) # batch * 2 * (num_anchors*h) * w   
+        rpn_cls_prob = F.softmax(rpn_cls_score_reshape, dim=1)
+        rpn_cls_prob_reshape = rpn_cls_prob.view_as(rpn_cls_score) # batch * h * w * (num_anchors * 2)
+
+
         cfg_key = 'TRAIN' if self.training else 'TEST'
         rois = self.proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred,
                                    im_info, cfg_key, self._feat_stride,
@@ -103,19 +104,6 @@ class RPN(nn.Module):
         rpn_loss_box = smooth_l1_loss(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights, bbox_outside_weights, sigma=3.0)
         return rpn_cross_entropy, rpn_loss_box
 
-    @staticmethod
-    def reshape_layer(x, d):
-        input_shape = x.size()
-        # x = x.permute(0, 3, 1, 2)
-        # b c w h
-        x = x.view(
-            input_shape[0],
-            int(d),
-            int(float(input_shape[1] * input_shape[2]) / float(d)),
-            input_shape[3]
-        )
-        # x = x.permute(0, 2, 3, 1)
-        return x
 
     @staticmethod
     def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_stride, anchor_scales):
@@ -161,53 +149,197 @@ class RPN(nn.Module):
 
         return rpn_labels, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights
 
-    def predict(self, im_data, im_info):
-        self.eval()
-
-        features, rpn_bbox_pred, rpn_cls_score = self._computer_forward(im_data)
-        height, width = rpn_cls_score.shape[-2:]
-        rpn_bbox_pred = rpn_bbox_pred.data.cpu().numpy()
-        _anchors = generate_anchors(scales=np.array(self.anchor_scales))
-        _num_anchors = _anchors.shape[0]
-        im_info = im_info[0]
-        bbox_deltas = rpn_bbox_pred
-        # Enumerate all shifts
-        shift_x = np.arange(0, width) * self._feat_stride
-        shift_y = np.arange(0, height) * self._feat_stride
-        shift_x, shift_y = np.meshgrid(shift_x, shift_y)
-        shifts = np.vstack((shift_x.ravel(), shift_y.ravel(),
-                            shift_x.ravel(), shift_y.ravel())).transpose()
-
-        A = _num_anchors
-        K = shifts.shape[0]
-        anchors = _anchors.reshape((1, A, 4)) + \
-            shifts.reshape((1, K, 4)).transpose((1, 0, 2))
-        anchors = anchors.reshape((K * A, 4))
-        bbox_deltas = bbox_deltas.transpose((0, 2, 3, 1)).reshape((-1, 4))
-
-        # Convert anchors into proposals via bbox transformations
-        proposals = bbox_transform_inv(anchors, bbox_deltas)
-        return proposals
-
     def predict_rois(self, im_data, im_info):
         self.eval()
         _, rois = self(im_data, im_info)
         return rois
 
 
-class FasterRCNN(nn.Module):
+class FastRCNN(nn.Module):
     """docstring for FasterRCNN"""
 
     SCALES = (600, )
     MAX_SIZE = 1000
 
     def __init__(self, classes, debug=False):
-        super(FasterRCNN, self).__init__()
+        super(FastRCNN, self).__init__()
         assert classes is not None
         self.classes = classes
         self.n_classes = len(classes)
 
         self.features = vgg16()
+        self.roi_pool = RoIPool(7, 7, 1.0 / 16)
+        self.fc6 = FC(512 * 7 * 7, 4096)
+        self.fc7 = FC(4096, 4096)
+        self.score_fc = FC(4096, self.n_classes, relu=False)
+        self.bbox_fc = FC(4096, self.n_classes * 4, relu=False)
+
+        self.cross_entropy = None
+        self.loss_box = None
+
+        self.debug = debug
+
+    @property
+    def loss(self):
+        return self.cross_entropy + 10 * self.loss_box
+
+    def forward(self, im_data, im_info, gt_boxes=None, rois=None):
+
+        assert rois is not None
+        rois = tensor_to_variable(rois)
+        im_data = tensor_to_variable(im_data)
+        features = self.features(im_data)
+
+        if self.training:
+            roi_data = self.proposal_target_layer(
+                rois, gt_boxes, self.n_classes)
+            rois = roi_data[0]
+
+        # Roi pool
+        pooled_features = self.roi_pool(features, rois)
+        x = pooled_features.view(pooled_features.size()[0], -1)
+        x = self.fc6(x)
+        x = F.dropout(x, training=self.training)
+        x = self.fc7(x)
+        x = F.dropout(x, training=self.training)
+        cls_score = self.score_fc(x)
+        cls_prob = F.softmax(cls_score)
+        bbox_pred = self.bbox_fc(x)
+
+        if self.training:
+            self.cross_entropy, self.loss_box = self.build_loss(
+                cls_score, bbox_pred, roi_data)
+
+        return cls_prob, bbox_pred, rois
+
+    def build_loss(self, cls_score, bbox_pred, roi_data):
+        label = roi_data[1].squeeze()
+        fg_cnt = torch.sum(label.data.ne(0))
+        bg_cnt = label.data.numel() - fg_cnt
+        # for log
+        if self.debug:
+            maxv, predict = cls_score.data.max(1)
+            # print predict
+            self.tp = torch.sum(predict[:fg_cnt].eq(
+                label.data[:fg_cnt])) if fg_cnt > 0 else 0
+            self.tf = torch.sum(predict[fg_cnt:].eq(label.data[fg_cnt:]))
+            self.fg_cnt = fg_cnt
+            self.bg_cnt = bg_cnt
+            print 'fg_cnt', fg_cnt
+            print 'bg_cnt', bg_cnt
+            print 'tp', self.tp
+            print 'cls_score.size()', cls_score.size()
+
+        ce_weights = torch.ones(cls_score.size()[1])
+        ce_weights[0] = float(fg_cnt) / bg_cnt
+        ce_weights = ce_weights.cuda()
+        cross_entropy = F.cross_entropy(cls_score, label, weight=ce_weights)
+        bbox_targets, bbox_inside_weights, bbox_outside_weights = roi_data[2:]
+
+        loss_box = smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights)
+        return cross_entropy, loss_box
+
+    @staticmethod
+    def proposal_target_layer(rpn_rois, gt_boxes, num_classes):
+        """
+        ----------
+        rpn_rois:  (1 x H x W x A, 5) [0, x1, y1, x2, y2]
+        gt_boxes: (G, 5) [x1 ,y1 ,x2, y2, class] int
+        num_classes
+        ----------
+        Returns
+        ----------
+        rois: (1 x H x W x A, 5) [0, x1, y1, x2, y2]
+        labels: (1 x H x W x A, 1) {0,1,...,_num_classes-1}
+        bbox_targets: (1 x H x W x A, K x4) [dx1, dy1, dx2, dy2]
+        bbox_inside_weights: (1 x H x W x A, Kx4) 0, 1 masks for the computing loss
+        bbox_outside_weights: (1 x H x W x A, Kx4) 0, 1 masks for the computing loss
+        """
+        rpn_rois = rpn_rois.data.cpu().numpy()
+        rois, labels, bbox_targets, bbox_inside_weights, bbox_outside_weights = \
+            proposal_target_layer_py(
+                rpn_rois, gt_boxes, num_classes)
+        # print labels.shape, bbox_targets.shape, bbox_inside_weights.shape
+        rois = np_to_variable(rois, is_cuda=True)
+        labels = np_to_variable(
+            labels, is_cuda=True, dtype=torch.LongTensor)
+        bbox_targets = np_to_variable(bbox_targets, is_cuda=True)
+        bbox_inside_weights = np_to_variable(
+            bbox_inside_weights, is_cuda=True)
+        bbox_outside_weights = np_to_variable(
+            bbox_outside_weights, is_cuda=True)
+
+        return rois, labels, bbox_targets, bbox_inside_weights, bbox_outside_weights
+
+    def interpret(self, cls_prob, bbox_pred, rois, im_info, im_shape, nms=True, clip=True, min_score=0.0):
+        # find class
+        scores, inds = cls_prob.data.max(1)
+        scores, inds = scores.cpu().numpy(), inds.cpu().numpy()
+        
+        keep = np.where((inds > 0) & (scores >= min_score))
+        scores, inds = scores[keep], inds[keep]
+
+        # Apply bounding-box regression deltas
+        keep = keep[0]
+        box_deltas = bbox_pred.data.cpu().numpy()[keep]
+        box_deltas = np.asarray([
+            box_deltas[i, (inds[i] * 4): (inds[i] * 4 + 4)] for i in range(len(inds))
+        ], dtype=np.float)
+        boxes = rois.data.cpu().numpy()[keep, 1:5]
+        pred_boxes = bbox_transform_inv(boxes, box_deltas)
+        if clip:
+            pred_boxes = clip_boxes(pred_boxes, im_shape)
+        if nms and pred_boxes.shape[0] > 0:
+            pred_boxes, scores, inds = nms_detections(
+                pred_boxes, scores, 0.3, inds=inds)
+        self.classes = np.array(self.classes)
+        return pred_boxes, scores, self.classes[inds], boxes
+
+    def detect(self, image, thr=0.5, rois=None):
+        self.eval()
+        im_data, im_info = self.get_image_blob(image)
+        cls_prob, bbox_pred, rois = self(im_data, im_info, rois=rois)
+        pred_boxes, scores, classes, rois = \
+            self.interpret(
+                cls_prob, bbox_pred, rois, im_info, im_info[0][:2], min_score=thr, nms=True)
+        return pred_boxes, scores, classes, rois, im_data
+
+    def get_image_blob(self, im):
+        """Converts an image into a network input.
+        Arguments:
+            im (ndarray): a color image in BGR order
+        Returns:
+            blob (ndarray): a data blob holding an image pyramid
+            im_scale_factors (list): list of image scales (relative to im) used
+                in the image pyramid
+        """
+        transform = transforms.Compose([
+            transforms.Resize(600),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [
+                0.229, 0.224, 0.225])])
+
+        img = Image.open(im).convert('RGB')
+        origin_size = img.size
+        img = transform(img)
+        img = img.unsqueeze(0)
+        target_size = tuple(img.size())
+        im_info = np.array(
+            [[float(target_size[2]), float(target_size[3]), 600. / min(origin_size)]])
+
+        return img, im_info
+
+
+class FasterRCNN(FastRCNN):
+    """docstring for FasterRCNN"""
+
+
+    def __init__(self, classes, debug=False):
+        super(FasterRCNN, self).__init__(classes, debug=False)
+        assert classes is not None
+        self.classes = classes
+        self.n_classes = len(classes)
+
         self.rpn = RPN()
         self.roi_pool = RoIPool(7, 7, 1.0 / 16)
         self.fc6 = FC(512 * 7 * 7, 4096)
@@ -222,7 +354,7 @@ class FasterRCNN(nn.Module):
 
     @property
     def loss(self):
-        return self.cross_entropy + 10 * self.loss_box + self.rpn.cross_entropy + 10 * self.rpn.loss_box
+        return self.cross_entropy + 10 * self.loss_box + self.rpn.loss
 
     def forward(self, im_data, im_info, gt_boxes=None, rois=None):
 
@@ -280,102 +412,15 @@ class FasterRCNN(nn.Module):
         cross_entropy = F.cross_entropy(cls_score, label, weight=ce_weights)
         bbox_targets, bbox_inside_weights, bbox_outside_weights = roi_data[2:]
 
-        # # bounding box regression L1 loss
-        # bbox_targets = torch.mul(bbox_targets, bbox_inside_weights)
-        # bbox_pred = torch.mul(bbox_pred, bbox_inside_weights)
-        # if True:
-        #     print 'bbox_targets 2', bbox_targets.cpu().data.numpy()
-        #     print 'bbox_targets 2', bbox_targets.cpu().data.numpy().shape
-
         loss_box = smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights)
         return cross_entropy, loss_box
 
-    @staticmethod
-    def proposal_target_layer(rpn_rois, gt_boxes, num_classes):
-        """
-        ----------
-        rpn_rois:  (1 x H x W x A, 5) [0, x1, y1, x2, y2]
-        gt_boxes: (G, 5) [x1 ,y1 ,x2, y2, class] int
-        num_classes
-        ----------
-        Returns
-        ----------
-        rois: (1 x H x W x A, 5) [0, x1, y1, x2, y2]
-        labels: (1 x H x W x A, 1) {0,1,...,_num_classes-1}
-        bbox_targets: (1 x H x W x A, K x4) [dx1, dy1, dx2, dy2]
-        bbox_inside_weights: (1 x H x W x A, Kx4) 0, 1 masks for the computing loss
-        bbox_outside_weights: (1 x H x W x A, Kx4) 0, 1 masks for the computing loss
-        """
-        rpn_rois = rpn_rois.data.cpu().numpy()
-        rois, labels, bbox_targets, bbox_inside_weights, bbox_outside_weights = \
-            proposal_target_layer_py(
-                rpn_rois, gt_boxes, num_classes)
-        # print labels.shape, bbox_targets.shape, bbox_inside_weights.shape
-        rois = np_to_variable(rois, is_cuda=True)
-        labels = np_to_variable(
-            labels, is_cuda=True, dtype=torch.LongTensor)
-        bbox_targets = np_to_variable(bbox_targets, is_cuda=True)
-        bbox_inside_weights = np_to_variable(
-            bbox_inside_weights, is_cuda=True)
-        bbox_outside_weights = np_to_variable(
-            bbox_outside_weights, is_cuda=True)
 
-        return rois, labels, bbox_targets, bbox_inside_weights, bbox_outside_weights
-
-    def interpret_faster_rcnn(self, cls_prob, bbox_pred, rois, im_info, im_shape, nms=True, clip=True, min_score=0.0):
-        # find class
-        scores, inds = cls_prob.data.max(1)
-        scores, inds = scores.cpu().numpy(), inds.cpu().numpy()
-        
-        keep = np.where((inds > 0) & (scores >= min_score))
-        scores, inds = scores[keep], inds[keep]
-
-        # Apply bounding-box regression deltas
-        keep = keep[0]
-        box_deltas = bbox_pred.data.cpu().numpy()[keep]
-        box_deltas = np.asarray([
-            box_deltas[i, (inds[i] * 4): (inds[i] * 4 + 4)] for i in range(len(inds))
-        ], dtype=np.float)
-        boxes = rois.data.cpu().numpy()[keep, 1:5]
-        pred_boxes = bbox_transform_inv(boxes, box_deltas)
-        if clip:
-            pred_boxes = clip_boxes(pred_boxes, im_shape)
-        if nms and pred_boxes.shape[0] > 0:
-            pred_boxes, scores, inds = nms_detections(
-                pred_boxes, scores, 0.3, inds=inds)
-        self.classes = np.array(self.classes)
-        return pred_boxes, scores, self.classes[inds], boxes
-
-    def detect(self, image, thr=0.5, rois=None):
+    def detect(self, image, thr=0.5):
         self.eval()
         im_data, im_info = self.get_image_blob(image)
-        cls_prob, bbox_pred, rois = self(im_data, im_info, rois=rois)
+        cls_prob, bbox_pred, rois = self(im_data, im_info)
         pred_boxes, scores, classes, rois = \
-            self.interpret_faster_rcnn(
+            self.interpret(
                 cls_prob, bbox_pred, rois, im_info, im_info[0][:2], min_score=thr, nms=True)
         return pred_boxes, scores, classes, rois, im_data
-
-    def get_image_blob(self, im):
-        """Converts an image into a network input.
-        Arguments:
-            im (ndarray): a color image in BGR order
-        Returns:
-            blob (ndarray): a data blob holding an image pyramid
-            im_scale_factors (list): list of image scales (relative to im) used
-                in the image pyramid
-        """
-        transform = transforms.Compose([
-            transforms.Resize(600),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [
-                0.229, 0.224, 0.225])])
-
-        img = Image.open(im).convert('RGB')
-        origin_size = img.size
-        img = transform(img)
-        img = img.unsqueeze(0)
-        target_size = tuple(img.size())
-        im_info = np.array(
-            [[float(target_size[2]), float(target_size[3]), 600. / min(origin_size)]])
-
-        return img, im_info

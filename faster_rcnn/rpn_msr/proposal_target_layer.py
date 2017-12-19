@@ -40,15 +40,6 @@ def proposal_target_layer(rpn_rois, gt_boxes, _num_classes):
     # TODO(rbg): it's annoying that sometimes I have extra info before
     # and other times after box coordinates -- normalize to one format
 
-    # Include ground-truth boxes in the set of candidate rois
-    # gt_easyboxes = gt_boxes
-
-    # """
-    # add the ground-truth to rois will cause zero loss! not good for visuallization
-    # """
-    # jittered_gt_boxes = _jitter_gt_boxes(gt_easyboxes)
-    # zeros = np.zeros((gt_boxes.shape[0], 1), dtype=gt_boxes.dtype)
-    # all_rois = np.vstack((all_rois, np.hstack((zeros, gt_boxes[:, :-1]))))
 
     # Sanity check: single batch only
     assert np.all(all_rois[:, 0] == 0), \
@@ -185,20 +176,3 @@ def _compute_targets(ex_rois, gt_rois, labels):
         targets = ((targets - np.array(cfg.TRAIN.BBOX_NORMALIZE_MEANS)) / np.array(cfg.TRAIN.BBOX_NORMALIZE_STDS))
     return np.hstack(
         (labels[:, np.newaxis], targets)).astype(np.float32, copy=False)
-
-
-def _jitter_gt_boxes(gt_boxes, jitter=0.05):
-    """ jitter the gtboxes, before adding them into rois, to be more robust for cls and rgs
-    gt_boxes: (G, 5) [x1 ,y1 ,x2, y2, class] int
-    """
-    jittered_boxes = gt_boxes.copy().astype(np.float32)
-    ws = jittered_boxes[:, 2] - jittered_boxes[:, 0] + 1.0
-    hs = jittered_boxes[:, 3] - jittered_boxes[:, 1] + 1.0
-    width_offset = (np.random.rand(jittered_boxes.shape[0]) - 0.5) * jitter * ws
-    height_offset = (np.random.rand(jittered_boxes.shape[0]) - 0.5) * jitter * hs
-    jittered_boxes[:, 0] += width_offset
-    jittered_boxes[:, 2] += width_offset
-    jittered_boxes[:, 1] += height_offset
-    jittered_boxes[:, 3] += height_offset
-
-    return jittered_boxes
