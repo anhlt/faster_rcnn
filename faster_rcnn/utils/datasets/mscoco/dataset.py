@@ -1,40 +1,15 @@
 from torchvision.datasets import CocoDetection
 import os
 import numpy as np
-from .blob import im_list_to_blob, prep_im_for_blob
-from scipy.misc import imread
-from ..config import cfg
 import scipy.io as io
 import scipy
-from .ds_utils import unique_boxes, filter_small_boxes, validate_boxes
+from ...ds_utils import unique_boxes, filter_small_boxes, validate_boxes
 import logging
-from ..utils.cython_bbox import bbox_overlaps
+from ....utils.cython_bbox import bbox_overlaps
 from torchvision import transforms
-from torchvision.transforms import Resize
 from PIL import Image
 
 logger = logging.getLogger(__name__)
-
-
-def _get_image_blob(im):
-    """Builds an input blob from the images in the roidb at the specified
-    scales.
-    """
-    processed_ims = []
-    im_scales = []
-
-    target_size = cfg.TRAIN.SCALES[0]
-    im, im_scale = prep_im_for_blob(im, cfg.PIXEL_MEANS, target_size,
-                                    cfg.TRAIN.MAX_SIZE)
-    im_scales.append(im_scale)
-    processed_ims.append(im)
-
-    # Create a blob to hold the input images
-    blob = im_list_to_blob(processed_ims)
-
-    im_info = np.array([[blob.shape[1], blob.shape[2], im_scales[0]]])
-
-    return blob, im_info
 
 
 class CocoData(CocoDetection):

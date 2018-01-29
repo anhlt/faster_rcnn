@@ -43,4 +43,4 @@ ADD ./requirements.txt /tmp/requirements.txt
 WORKDIR /tmp/
 RUN pip install requests
 RUN pip install -r requirements.txt
-RUN jt -t onedork -fs 95 -altp -tfs 11 -nfs 115 -cellw 88% -T
+RUN conda install -y --name pytorch -c anaconda protobuf 

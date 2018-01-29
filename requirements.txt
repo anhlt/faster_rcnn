@@ -5,6 +5,3 @@ easydict==1.7
 joblib
 requests
 pycrayon
-keras
-tensorflow-gpu
-jupyterthemes

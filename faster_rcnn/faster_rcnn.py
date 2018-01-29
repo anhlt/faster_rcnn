@@ -10,8 +10,6 @@ from .network import vgg16, Conv2d, np_to_variable, FC, tensor_to_variable
 from roi_pooling.modules.roi_pool import RoIPool
 from .fastrcnn.bbox_transform import bbox_transform_inv, clip_boxes
 from .fastrcnn.nms_wrapper import nms
-from .utils.blob import im_list_to_blob
-import cv2
 from network import smooth_l1_loss
 from PIL import Image
 from torchvision import transforms
@@ -62,12 +60,11 @@ class RPN(nn.Module):
                 im_info, gt_boxes=None):
         features, rpn_bbox_pred, rpn_cls_score = self._computer_forward(im_data)
 
-        #rpn_cls_score : batch * (num_anchors * 2) * h * w = 1 * (4 * 3 * 2) * h * w
+        # rpn_cls_score : batch * (num_anchors * 2) * h * w = 1 * (4 * 3 * 2) * h * w
 
-        rpn_cls_score_reshape = rpn_cls_score.view(1, 2, -1, rpn_cls_score.size()[-1]) # batch * 2 * (num_anchors*h) * w   
+        rpn_cls_score_reshape = rpn_cls_score.view(1, 2, -1, rpn_cls_score.size()[-1])  # batch * 2 * (num_anchors*h) * w
         rpn_cls_prob = F.softmax(rpn_cls_score_reshape, dim=1)
-        rpn_cls_prob_reshape = rpn_cls_prob.view_as(rpn_cls_score) # batch * h * w * (num_anchors * 2)
-
+        rpn_cls_prob_reshape = rpn_cls_prob.view_as(rpn_cls_score)  # batch * h * w * (num_anchors * 2)
 
         cfg_key = 'TRAIN' if self.training else 'TEST'
         rois = self.proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred,
@@ -103,7 +100,6 @@ class RPN(nn.Module):
         rpn_bbox_targets, rpn_bbox_inside_weights, bbox_outside_weights = rpn_data[1:]
         rpn_loss_box = smooth_l1_loss(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights, bbox_outside_weights, sigma=3.0)
         return rpn_cross_entropy, rpn_loss_box
-
 
     @staticmethod
     def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_stride, anchor_scales):
@@ -167,7 +163,7 @@ class FastRCNN(nn.Module):
         self.classes = classes
         self.n_classes = len(classes)
 
-        self.features = vgg16()
+        # self.features = vgg16()
         self.roi_pool = RoIPool(7, 7, 1.0 / 16)
         self.fc6 = FC(512 * 7 * 7, 4096)
         self.fc7 = FC(4096, 4096)
@@ -275,7 +271,7 @@ class FastRCNN(nn.Module):
         # find class
         scores, inds = cls_prob.data.max(1)
         scores, inds = scores.cpu().numpy(), inds.cpu().numpy()
-        
+
         keep = np.where((inds > 0) & (scores >= min_score))
         scores, inds = scores[keep], inds[keep]
 
@@ -332,7 +328,6 @@ class FastRCNN(nn.Module):
 
 class FasterRCNN(FastRCNN):
     """docstring for FasterRCNN"""
-
 
     def __init__(self, classes, debug=False):
         super(FasterRCNN, self).__init__(classes, debug=False)
@@ -414,7 +409,6 @@ class FasterRCNN(FastRCNN):
 
         loss_box = smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights)
         return cross_entropy, loss_box
-
 
     def detect(self, image, thr=0.5):
         self.eval()
