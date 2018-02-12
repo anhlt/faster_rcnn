@@ -94,11 +94,11 @@ class VOCDetection(data.Dataset):
             except text_format.ParseError:
                 label_map.ParseFromString(label_map_string)
 
-        label_map_dict = {}
+        label_map_dict = {'__background__': 0}
         self.classes = ['__background__']
 
-        for item in label_map.item:
-            label_map_dict[item.name] = item.id
+        for id, item in enumerate(label_map.item, 1):
+            label_map_dict[item.name] = id
             self.classes.append(item.name)
 
         self.label_map_dict = label_map_dict
@@ -114,8 +114,13 @@ class VOCDetection(data.Dataset):
             ])
 
         with open(self._imgsetpath % self.image_set) as f:
-            self.ids = f.readlines()
-        self.ids = [x.strip().split()[0] for x in self.ids if x.strip().split()[1] != '-1']
+            ids = f.readlines()
+
+        self.ids = []
+        for id in ids:
+            striped_strings = id.strip().split()
+            if len(striped_strings) == 2:
+                self.ids.append(striped_strings[0])
 
     def __getitem__(self, index):
         img_id = self.ids[index]
@@ -124,7 +129,7 @@ class VOCDetection(data.Dataset):
             target = ET.parse(self._annopath % img_id).getroot()
             img = Image.open(self._imgpath % img_id).convert('RGB')
         except IOError as e:
-            logger.info(e)
+            # logger.debug(e)
             return None
 
         origin_size = img.size
@@ -154,7 +159,6 @@ class VOCDetection(data.Dataset):
             gt_boxes = np.array(gt_boxes, dtype=np.uint16)
             gt_classes = np.array(gt_classes, dtype=np.int32)
         except ValueError as e:
-            logger.info(e)
             return None
 
         if self.target_transform is not None:

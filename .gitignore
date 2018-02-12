@@ -100,3 +100,5 @@ sftp-config.json
 
 *.pkl
 data/
+VOC2007/
+test_im/

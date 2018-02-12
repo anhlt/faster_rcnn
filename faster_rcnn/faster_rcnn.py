@@ -287,7 +287,7 @@ class FastRCNN(nn.Module):
             pred_boxes = clip_boxes(pred_boxes, im_shape)
         if nms and pred_boxes.shape[0] > 0:
             pred_boxes, scores, inds = nms_detections(
-                pred_boxes, scores, 0.3, inds=inds)
+                pred_boxes, scores, 0.1, inds=inds)
         self.classes = np.array(self.classes)
         return pred_boxes, scores, self.classes[inds], boxes
 
