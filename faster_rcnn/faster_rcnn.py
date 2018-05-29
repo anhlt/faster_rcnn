@@ -58,13 +58,16 @@ class RPN(nn.Module):
     def forward(self,
                 im_data,
                 im_info, gt_boxes=None):
-        features, rpn_bbox_pred, rpn_cls_score = self._computer_forward(im_data)
+        features, rpn_bbox_pred, rpn_cls_score = self._computer_forward(
+            im_data)
 
-        # rpn_cls_score : batch * (num_anchors * 2) * h * w = 1 * (4 * 3 * 2) * h * w
+        # rpn_cls_score : batch ,(num_anchors * 2) , h ,w = 1 , (4 * 3 * 2) , h , w
 
-        rpn_cls_score_reshape = rpn_cls_score.view(1, 2, -1, rpn_cls_score.size()[-1])  # batch * 2 * (num_anchors*h) * w
+        rpn_cls_score_reshape = rpn_cls_score.view(
+            1, 2, -1, rpn_cls_score.shape[-1])  # batch , 2 , (num_anchors*h) , w
         rpn_cls_prob = F.softmax(rpn_cls_score_reshape, dim=1)
-        rpn_cls_prob_reshape = rpn_cls_prob.view_as(rpn_cls_score)  # batch * h * w * (num_anchors * 2)
+        rpn_cls_prob_reshape = rpn_cls_prob.view_as(
+            rpn_cls_score)  # batch , h , w , (num_anchors * 2)
 
         cfg_key = 'TRAIN' if self.training else 'TEST'
         rois = self.proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred,
@@ -86,8 +89,9 @@ class RPN(nn.Module):
     def build_loss(self, rpn_cls_score_reshape, rpn_bbox_pred, rpn_data):
         # classification loss
         rpn_cls_score = rpn_cls_score_reshape.permute(
-            0, 2, 3, 1).contiguous().view(-1, 2)
+            0, 2, 3, 1).contiguous().view(-1, 2)  # batch * h * w * a , 2
         rpn_label = rpn_data[0].view(-1)
+        print(rpn_cls_score.shape)
 
         rpn_keep = Variable(
             rpn_label.data.ne(-1).nonzero().squeeze()).cuda()
@@ -98,7 +102,8 @@ class RPN(nn.Module):
         rpn_cross_entropy = F.cross_entropy(rpn_cls_score, rpn_label)
         # box loss
         rpn_bbox_targets, rpn_bbox_inside_weights, bbox_outside_weights = rpn_data[1:]
-        rpn_loss_box = smooth_l1_loss(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights, bbox_outside_weights, sigma=3.0)
+        rpn_loss_box = smooth_l1_loss(
+            rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights, bbox_outside_weights, sigma=3.0)
         return rpn_cross_entropy, rpn_loss_box
 
     @staticmethod
@@ -132,7 +137,8 @@ class RPN(nn.Module):
         """
         rpn_cls_score = rpn_cls_score.data.cpu().numpy()
         rpn_labels, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights = \
-            anchor_target_layer_py(rpn_cls_score, gt_boxes, im_info, _feat_stride, anchor_scales)
+            anchor_target_layer_py(
+                rpn_cls_score, gt_boxes, im_info, _feat_stride, anchor_scales)
 
         rpn_labels = np_to_variable(
             rpn_labels, is_cuda=True, dtype=torch.LongTensor)
@@ -232,7 +238,8 @@ class FastRCNN(nn.Module):
         cross_entropy = F.cross_entropy(cls_score, label, weight=ce_weights)
         bbox_targets, bbox_inside_weights, bbox_outside_weights = roi_data[2:]
 
-        loss_box = smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights)
+        loss_box = smooth_l1_loss(
+            bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights)
         return cross_entropy, loss_box
 
     @staticmethod
@@ -407,7 +414,8 @@ class FasterRCNN(FastRCNN):
         cross_entropy = F.cross_entropy(cls_score, label, weight=ce_weights)
         bbox_targets, bbox_inside_weights, bbox_outside_weights = roi_data[2:]
 
-        loss_box = smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights)
+        loss_box = smooth_l1_loss(
+            bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights)
         return cross_entropy, loss_box
 
     def detect(self, image, thr=0.5):

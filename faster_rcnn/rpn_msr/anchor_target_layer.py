@@ -14,7 +14,7 @@ from ..utils.cython_bbox import bbox_overlaps
 from ..fastrcnn.bbox_transform import bbox_transform
 from ..config import cfg
 
-DEBUG = False
+DEBUG = True
 np.random.seed(None)
 
 
@@ -184,6 +184,8 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride=[16, ],
     bbox_targets = _compute_targets(anchors, gt_boxes[argmax_overlaps, :])
 
     bbox_inside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
+    print "bbox_inside_weights.shape"
+    print bbox_inside_weights.shape
     bbox_inside_weights[labels == 1, :] = np.array(
         cfg.TRAIN.RPN_BBOX_INSIDE_WEIGHTS)
 
@@ -233,9 +235,11 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride=[16, ],
     # map up to original set of anchors
     labels = _unmap(labels, total_anchors, inds_inside, fill=-1)
     bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside, fill=0)
+    print "bbox_inside_weights.shape:"
+    print bbox_inside_weights.shape
     bbox_inside_weights = _unmap(bbox_inside_weights, total_anchors, inds_inside, fill=0)
     bbox_outside_weights = _unmap(bbox_outside_weights, total_anchors, inds_inside, fill=0)
-    
+    print bbox_inside_weights.shape
     # labels
     # pdb.set_trace()
     labels = labels.reshape((1, height, width, A))

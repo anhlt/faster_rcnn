@@ -5,3 +5,5 @@ easydict==1.7
 joblib
 requests
 pycrayon
+nose
+requests

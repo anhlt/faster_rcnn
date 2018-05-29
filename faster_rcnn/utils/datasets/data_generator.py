@@ -51,7 +51,6 @@ class Iterator(object):
                 self.batch_index = 0
             self.total_batches_seen += 1
             logger.debug("_flow_index")
-            logger.debug(index_array[current_index: current_index + current_batch_size])
             yield (index_array[current_index: current_index + current_batch_size], current_index, current_batch_size)
 
     def __iter__(self):
@@ -65,10 +64,37 @@ class Iterator(object):
 
 class CocoGenerator(Iterator):
     def __init__(self, data,
-                 batch_size=1, shuffle=False, seed=None):
+                 batch_size=1, shuffle=False, seed=None, sorted_index=None):
         self.data = data
         super(CocoGenerator, self).__init__(
             len(data), batch_size, shuffle, seed)
+
+        self.sorted_index = sorted_index
+
+    def _flow_index(self, n, batch_size=32, shuffle=False, seed=None):
+        # Ensure self.batch_index is 0.
+        self.reset()
+        while 1:
+            if seed is not None:
+                np.random.seed(seed + self.total_batches_seen)
+            if self.batch_index == 0:
+                if self.sorted_index is None:
+                    index_array = np.arange(n)
+                else:
+                    index_array = self.sorted_index
+
+                if shuffle:
+                    index_array = np.random.permutation(n)
+
+            current_index = (self.batch_index * batch_size) % n
+            if n > current_index + batch_size:
+                current_batch_size = batch_size
+                self.batch_index += 1
+            else:
+                current_batch_size = n - current_index
+                self.batch_index = 0
+            self.total_batches_seen += 1
+            yield (index_array[current_index: current_index + current_batch_size], current_index, current_batch_size)
 
     def next(self):
         """For python 2.x.
@@ -83,8 +109,14 @@ class CocoGenerator(Iterator):
         # The transformation of images is not under thread lock
         # so it can be done in parallel
         logger.debug('Next executed')
-        logger.debug(self.data[index_array[0]])
-        return self.data[index_array[0]]
+        logger.debug('hehehe' + str(index_array))
+        logger.debug(current_index)
+        logger.debug(current_batch_size)
+
+        data = [self.data[i] for i in index_array]
+        data = [i for i in data if i is not None]
+        logger.debug([d['im_name'] for d in data])
+        return data
 
 
 class Enqueuer(object):
@@ -97,6 +129,11 @@ class Enqueuer(object):
         self.wait_time = wait_time
         self.random_seed = random_seed
 
+        if self._use_multiprocessing:
+            self.lock = multiprocessing.Lock()
+        else:
+            self.lock = threading.Lock()
+
     def start(self, workers=3, max_queue_size=10):
         logger.debug('start')
 
@@ -106,7 +143,8 @@ class Enqueuer(object):
             while not self._stop_event.is_set():
                 try:
                     logger.debug("Queue size %d " % self.queue.qsize())
-                    logger.debug("use_multiprocessing %s" % str(self._use_multiprocessing))
+                    logger.debug("use_multiprocessing %s" %
+                                 str(self._use_multiprocessing))
                     if self._use_multiprocessing or self.queue.qsize() < max_queue_size:
                         generator_output = next(self._generator)
                         self.queue.put(generator_output)
