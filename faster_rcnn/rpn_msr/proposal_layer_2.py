@@ -96,16 +96,8 @@ class ProposalLayer(nn.Module):
         # add bbox deltas to shifted anchors to get proposal
         all_anchors = (self._anchors.reshape((1, A, 4)) +
                        shifts.reshape((1, K, 4)).transpose((1, 0, 2)))
-        all_anchors = all_anchors.reshape((K * A, 4))
+        all_anchors = all_anchors.reshape((1, K * A, 4))
         return all_anchors
-
-    def _filter_irregular_boxes(self, all_anchors, min_ratio=0.2, max_ratio=5):
-        """Remove all boxes with any side smaller than min_size."""
-        ws = boxes[:, 2] - boxes[:, 0] + 1
-        hs = boxes[:, 3] - boxes[:, 1] + 1
-        rs = ws / hs
-        keep = np.where((rs <= max_ratio) & (rs >= min_ratio))[0]
-        return keep
 
     def _filter_boxes(self, boxes, min_size):
         """Remove all boxes with any side smaller than min_size."""

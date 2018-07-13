@@ -120,7 +120,7 @@ class CocoGenerator(Iterator):
 
 
 class Enqueuer(object):
-    def __init__(self, generator, use_multiprocessing=True, shuffle=False, wait_time=0.05, random_seed=None):
+    def __init__(self, generator, use_multiprocessing=False, shuffle=False, wait_time=0.05, random_seed=None):
         self._generator = generator
         self._use_multiprocessing = use_multiprocessing
         self.queue = None

@@ -6,6 +6,7 @@ from .generate_anchors import generate_anchors
 from ..utils.cython_bbox import bbox_overlaps
 from ..fastrcnn.bbox_transform import bbox_transform
 from ..config import cfg
+from torch import Tensor
 
 
 class AnchorTargerLayer(nn.Module):
@@ -21,7 +22,7 @@ class AnchorTargerLayer(nn.Module):
         self._allow_border = 0
 
     def forward(self, input):
-        rpn_cls_score = input[0].numpy()
+        rpn_cls_score = input[0].cpu().detach().numpy()
         gt_boxes = input[1].numpy()
         im_info = input[2].numpy()
         batch_boxes_index = input[3].numpy()
@@ -35,56 +36,20 @@ class AnchorTargerLayer(nn.Module):
 
         # 1. Generate proposal from bbox deltas and shifted anchors
         all_anchors = self._create_anchors(feature_height, feature_width)
-        # only keep anchors inside the image
-        all_anchors, inside_anchors = self._filter_outside_anchors(
-            all_anchors, im_height, im_width)
-
         total_anchors = all_anchors.shape[0]
+
+        # only keep anchors inside the image
+        inside_anchors, inside_anchor_indexes = self._filter_outside_anchors(
+            all_anchors, im_height, im_width)
 
         # 2. Calculate overlap and assign corresponding label
 
-        labels = np.empty(
-            (batch_size, inside_anchors.shape[0]), dtype=np.float32)
-        bbox_targets = np.zeros(
-            (batch_size, inside_anchors.shape[0], 4), dtype=np.float32)
-        labels.fill(-1)
-
         bbox_inside_weights = np.zeros(
-            (batch_size, inside_anchors[0], 4), dtype=np.float32)
+            (batch_size, inside_anchor_indexes.shape[0], 4), dtype=np.float32)
         bbox_outside_weights = np.zeros(
-            (batch_size, inside_anchors[0], 4), dtype=np.float32)
+            (batch_size, inside_anchor_indexes.shape[0], 4), dtype=np.float32)
 
-        overlaps = bbox_overlaps(inside_anchors.numpy().astype(
-            np.float), gt_boxes.astype(np.float))
-
-        for i in range(batch_size):
-            current_batch_overlaps = overlaps[:, batch_boxes_index == i]
-            current_batch_boxes = batch_boxes[batch_boxes_index == i]
-
-            argmax_overlaps = current_batch_overlaps.argmax(axis=1)  # (A)
-            max_overlaps = current_batch_overlaps[np.arange(
-                inside_anchors.shape[0]), argmax_overlaps]
-            gt_argmax_overlaps = current_batch_overlaps.argmax(axis=0)  # G
-            gt_max_overlaps = current_batch_overlaps[gt_argmax_overlaps, np.arange(
-                current_batch_overlaps.shape[1])]
-            gt_argmax_overlaps = np.where(
-                current_batch_overlaps == gt_max_overlaps)[0]
-
-            if not cfg.TRAIN.RPN_CLOBBER_POSITIVES:
-                # assign bg labels first so that positive labels can clobber them
-                labels[i, max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
-
-            # fg label: for each gt, anchor with highest overlap
-            labels[i, gt_argmax_overlaps] = 1
-            # fg label: above threshold IOU
-            labels[i, max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 1
-
-            if cfg.TRAIN.RPN_CLOBBER_POSITIVES:
-                # assign bg labels last so that negative labels can clobber positives
-                labels[i, max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
-            current_batch_bbox_targets = bbox_transform(inside_anchors.astype(
-                np.float), current_batch_boxes[argmax_overlaps, :]).astype(np.float32, copy=False)
-            bbox_targets[i, :] = current_batch_bbox_targets
+        labels, bbox_targets = self.calculate_target(inside_anchors, batch_size, inside_anchor_indexes, batch_boxes, batch_boxes_index)
 
         # 3. calculate bbox_inside_weights, bbox_outside_weights
         bbox_inside_weights[labels == 1] = cfg.TRAIN.RPN_BBOX_INSIDE_WEIGHTS
@@ -101,15 +66,17 @@ class AnchorTargerLayer(nn.Module):
             current_batch_bg_index = np.where(labels[i] == 0)[0]
             if current_batch_sum_fg > num_fg:
                 disable_inds = npr.choice(
-                    current_batch_fg_index, size=(len(current_batch_sum_fg) - num_fg), replace=False)
-                labels[disable_inds] = -1
+                    current_batch_fg_index, size=(current_batch_sum_fg - num_fg), replace=False)
+                labels[i][disable_inds] = -1
 
                 # subsample negative labels if we have too many
-            num_bg = cfg.TRAIN.RPN_BATCHSIZE - np.sum(labels == 1)
+
+            num_bg = cfg.TRAIN.RPN_BATCHSIZE - np.sum(labels[i] == 1)
             if current_batch_sum_bg > num_bg:
                 disable_inds = npr.choice(
                     current_batch_bg_index, size=(current_batch_sum_bg - num_bg), replace=False)
-                labels[disable_inds] = -1
+
+                labels[i][disable_inds] = -1
 
         if cfg.TRAIN.RPN_POSITIVE_WEIGHT < 0:
             num_examples = np.sum(labels[i] >= 0)
@@ -127,13 +94,13 @@ class AnchorTargerLayer(nn.Module):
         bbox_outside_weights[labels == 0] = np.array([negative_weights] * 4)
 
         labels = self._unmap(labels, total_anchors,
-                             inside_anchors[0], batch_size, fill=-1)
+                             inside_anchor_indexes, batch_size, fill=-1)
         bbox_targets = self._unmap(bbox_targets, total_anchors,
-                                   inside_anchors[0], batch_size, fill=0)
+                                   inside_anchor_indexes, batch_size, fill=0)
         bbox_inside_weights = self._unmap(
-            bbox_inside_weights, total_anchors, inside_anchors[0], batch_size, fill=0)
+            bbox_inside_weights, total_anchors, inside_anchor_indexes, batch_size, fill=0)
         bbox_outside_weights = self._unmap(
-            bbox_outside_weights, total_anchors, inside_anchors[0], batch_size, fill=0)
+            bbox_outside_weights, total_anchors, inside_anchor_indexes, batch_size, fill=0)
 
         labels = labels.reshape((batch_size, feature_height, feature_width, A))
         labels = labels.transpose((0, 3, 1, 2))
@@ -148,7 +115,7 @@ class AnchorTargerLayer(nn.Module):
         bbox_outside_weights = bbox_outside_weights.reshape(
             (batch_size, feature_height, feature_width, A * 4)).transpose((0, 3, 1, 2))
 
-        return (Variable(labels), Variable(bbox_targets), Variable(bbox_inside_weights), Variable(bbox_outside_weights))
+        return Tensor(labels), Tensor(bbox_targets), Tensor(bbox_inside_weights), Tensor(bbox_outside_weights)
 
     def backward(self, top, propagate_down, bottom):
         """This layer does not propagate gradients."""
@@ -168,9 +135,6 @@ class AnchorTargerLayer(nn.Module):
         # generate shifted anchors
         A = self._num_anchors
         K = shifts.shape[0]
-
-        print A
-        print K
 
         # move to specific gpu.
         # self._anchors = self._anchors.type_as(gt_boxes)
@@ -204,3 +168,45 @@ class AnchorTargerLayer(nn.Module):
             ret.fill(fill)
             ret[:, inds, :] = data
         return ret
+
+    def calculate_target(self, inside_anchors, batch_size, inside_anchor_indexes, batch_boxes, batch_boxes_index):
+
+        labels = np.empty(
+            (batch_size, inside_anchor_indexes.shape[0]), dtype=np.float32)
+        bbox_targets = np.zeros(
+            (batch_size, inside_anchor_indexes.shape[0], 4), dtype=np.float32)
+        labels.fill(-1)
+
+        overlaps = bbox_overlaps(inside_anchors.astype(
+            np.float), batch_boxes.astype(np.float))
+
+        for i in range(batch_size):
+            current_batch_overlaps = overlaps[:, batch_boxes_index == i]
+            current_batch_boxes = batch_boxes[[batch_boxes_index == i]]
+
+            argmax_overlaps = current_batch_overlaps.argmax(axis=1)  # (A)
+            max_overlaps = current_batch_overlaps[np.arange(
+                inside_anchor_indexes.shape[0]), argmax_overlaps]
+            gt_argmax_overlaps = current_batch_overlaps.argmax(axis=0)  # G
+            gt_max_overlaps = current_batch_overlaps[gt_argmax_overlaps, np.arange(
+                current_batch_overlaps.shape[1])]
+            gt_argmax_overlaps = np.where(
+                current_batch_overlaps == gt_max_overlaps)[0]
+
+            if not cfg.TRAIN.RPN_CLOBBER_POSITIVES:
+                # assign bg labels first so that positive labels can clobber them
+                labels[i, max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
+
+            # fg label: for each gt, anchor with highest overlap
+            labels[i, gt_argmax_overlaps] = 1
+            # fg label: above threshold IOU
+            labels[i, max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 1
+
+            if cfg.TRAIN.RPN_CLOBBER_POSITIVES:
+                # assign bg labels last so that negative labels can clobber positives
+                labels[i, max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
+            current_batch_bbox_targets = bbox_transform(inside_anchors.astype(
+                np.float), current_batch_boxes[argmax_overlaps, :]).astype(np.float32, copy=False)
+            bbox_targets[i, :] = current_batch_bbox_targets
+
+        return labels, bbox_targets

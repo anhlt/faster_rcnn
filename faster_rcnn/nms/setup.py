@@ -124,7 +124,7 @@ ext_modules = [
               # the implementation of this trick is in customize_compiler()
               # below
               extra_compile_args={'gcc': ["-Wno-unused-function"],
-                                  'nvcc': ['-arch=sm_35',
+                                  'nvcc': ['-arch=sm_61',
                                            '--ptxas-options=-v',
                                            '-c',
                                            '--compiler-options',
