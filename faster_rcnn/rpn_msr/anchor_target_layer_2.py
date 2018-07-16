@@ -7,25 +7,28 @@ from ..utils.cython_bbox import bbox_overlaps
 from ..fastrcnn.bbox_transform import bbox_transform
 from ..config import cfg
 from torch import Tensor
+import torch
+from ..network import np_to_variable
 
 
 class AnchorTargerLayer(nn.Module):
 
-    def __init__(self, feat_stride, anchor_scales):
+    def __init__(self, feat_stride, anchor_scales, is_cuda=True):
         super(AnchorTargerLayer, self).__init__()
         self._feat_stride = feat_stride
         self._anchor_scales = anchor_scales
         self._anchors = generate_anchors(scales=np.array(self._anchor_scales))
         self._num_anchors = self._anchors.shape[0]
+        self.is_cuda = is_cuda
 
         # allow boxes to sit over the edge by a small amount
         self._allow_border = 0
 
-    def forward(self, input):
-        rpn_cls_score = input[0].cpu().detach().numpy()
-        gt_boxes = input[1].numpy()
-        im_info = input[2].numpy()
-        batch_boxes_index = input[3].numpy()
+    def forward(self, rpn_cls_score, gt_boxes, batch_boxes_index, im_info):
+        rpn_cls_score = rpn_cls_score.cpu().detach().numpy()
+        # gt_boxes = gt_boxes.numpy()
+        # im_info = im_info.numpy()
+        # batch_boxes_index = batch_boxes_index.numpy()
         batch_boxes = gt_boxes[:, :4]
 
         feature_height, feature_width = rpn_cls_score.shape[2], rpn_cls_score.shape[3]
@@ -49,7 +52,8 @@ class AnchorTargerLayer(nn.Module):
         bbox_outside_weights = np.zeros(
             (batch_size, inside_anchor_indexes.shape[0], 4), dtype=np.float32)
 
-        labels, bbox_targets = self.calculate_target(inside_anchors, batch_size, inside_anchor_indexes, batch_boxes, batch_boxes_index)
+        labels, bbox_targets = self.calculate_target(
+            inside_anchors, batch_size, inside_anchor_indexes, batch_boxes, batch_boxes_index)
 
         # 3. calculate bbox_inside_weights, bbox_outside_weights
         bbox_inside_weights[labels == 1] = cfg.TRAIN.RPN_BBOX_INSIDE_WEIGHTS
@@ -115,7 +119,7 @@ class AnchorTargerLayer(nn.Module):
         bbox_outside_weights = bbox_outside_weights.reshape(
             (batch_size, feature_height, feature_width, A * 4)).transpose((0, 3, 1, 2))
 
-        return Tensor(labels), Tensor(bbox_targets), Tensor(bbox_inside_weights), Tensor(bbox_outside_weights)
+        return np_to_variable(labels, self.is_cuda, dtype=torch.LongTensor), np_to_variable(bbox_targets, self.is_cuda), np_to_variable(bbox_inside_weights, self.is_cuda), np_to_variable(bbox_outside_weights, self.is_cuda)
 
     def backward(self, top, propagate_down, bottom):
         """This layer does not propagate gradients."""
@@ -170,6 +174,15 @@ class AnchorTargerLayer(nn.Module):
         return ret
 
     def calculate_target(self, inside_anchors, batch_size, inside_anchor_indexes, batch_boxes, batch_boxes_index):
+        '''
+        input:
+            - inside_anchors: [number_of_anchor * 4]
+            - batch_size: n
+            - inside_anchor_indexs: [number_of_anchor * 1]
+            - batch_boxes: list all ground truth boxes across all the image in batch
+            - batch_boxes_index: batch_index of correspond with each boxes
+                example: [0, 0, 0, 1, 1, 2, 2]
+        '''
 
         labels = np.empty(
             (batch_size, inside_anchor_indexes.shape[0]), dtype=np.float32)
@@ -179,6 +192,8 @@ class AnchorTargerLayer(nn.Module):
 
         overlaps = bbox_overlaps(inside_anchors.astype(
             np.float), batch_boxes.astype(np.float))
+
+        print(overlaps.shape)
 
         for i in range(batch_size):
             current_batch_overlaps = overlaps[:, batch_boxes_index == i]

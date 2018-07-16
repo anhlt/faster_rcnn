@@ -16,7 +16,7 @@ class ProposalLayer(nn.Module):
         self._anchors = generate_anchors(scales=np.array(self._anchor_scales))
         self._num_anchors = self._anchors.shape[0]
 
-    def forward(self, input):
+    def forward(self, scores, bbox_deltas, im_info, cfg_key):
         # Algorithm:
         #
         # for each (H, W) location i
@@ -29,10 +29,12 @@ class ProposalLayer(nn.Module):
         # apply NMS with threshold 0.7 to remaining proposals
         # take after_nms_topN proposals after NMS
         # return the top proposals (-> RoIs top, scores top)
-        scores = input[0][:, self._num_anchors:, :, :]
-        bbox_deltas = input[1]
-        im_info = input[2]
-        cfg_key = input[3]
+        scores = scores.cpu().detach().numpy()
+        bbox_deltas = bbox_deltas.cpu().detach().numpy()
+        scores = scores[:, self._num_anchors:, :, :]
+        im_info = im_info[0]
+        print scores.shape
+        print bbox_deltas.shape
 
         pre_nms_topN = cfg[cfg_key].RPN_PRE_NMS_TOP_N
         post_nms_topN = cfg[cfg_key].RPN_POST_NMS_TOP_N
