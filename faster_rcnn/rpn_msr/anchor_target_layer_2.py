@@ -193,8 +193,6 @@ class AnchorTargerLayer(nn.Module):
         overlaps = bbox_overlaps(inside_anchors.astype(
             np.float), batch_boxes.astype(np.float))
 
-        print(overlaps.shape)
-
         for i in range(batch_size):
             current_batch_overlaps = overlaps[:, batch_boxes_index == i]
             current_batch_boxes = batch_boxes[[batch_boxes_index == i]]

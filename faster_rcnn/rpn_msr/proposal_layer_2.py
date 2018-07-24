@@ -33,8 +33,6 @@ class ProposalLayer(nn.Module):
         bbox_deltas = bbox_deltas.cpu().detach().numpy()
         scores = scores[:, self._num_anchors:, :, :]
         im_info = im_info[0]
-        print scores.shape
-        print bbox_deltas.shape
 
         pre_nms_topN = cfg[cfg_key].RPN_PRE_NMS_TOP_N
         post_nms_topN = cfg[cfg_key].RPN_POST_NMS_TOP_N
@@ -55,7 +53,7 @@ class ProposalLayer(nn.Module):
         scores_keep = scores
         proposals_keep = proposals
 
-        order = scores_keep.argsort(axis=1)[::-1]
+        order = scores_keep.reshape((batch_size, -1)).argsort(axis=1)[:, ::-1]
         output = np.zeros((batch_size, post_nms_topN, 5))
         for i in range(batch_size):
             proposals_single = proposals_keep[i]
