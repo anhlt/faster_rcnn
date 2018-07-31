@@ -52,7 +52,6 @@ def bbox_transform_inv(boxes, deltas):
     ctr_y = boxes[:, :, 1] + 0.5 * heights
 
     dx = deltas[:, :, 0::4]
-    print dx.shape
     dy = deltas[:, :, 1::4]
     dw = deltas[:, :, 2::4]
     dh = deltas[:, :, 3::4]

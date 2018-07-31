@@ -54,14 +54,15 @@ class ProposalLayer(nn.Module):
         proposals_keep = proposals
 
         order = scores_keep.reshape((batch_size, -1)).argsort(axis=1)[:, ::-1]
+
+        order = order[:, :pre_nms_topN]
+
         output = np.zeros((batch_size, post_nms_topN, 5))
         for i in range(batch_size):
             proposals_single = proposals_keep[i]
             scores_single = scores_keep[i]
 
             order_single = order[i]
-
-            order_single = order_single[:pre_nms_topN].ravel()
             proposals_single = proposals_single[order_single]
             scores_single = scores_single[order_single]
 

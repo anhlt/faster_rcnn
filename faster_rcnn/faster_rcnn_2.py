@@ -7,6 +7,7 @@ from .rpn_msr.proposal_layer import proposal_layer as proposal_layer_py
 from .rpn_msr.proposal_layer_2 import ProposalLayer
 from .rpn_msr.anchor_target_layer_2 import AnchorTargerLayer
 from rpn_msr.proposal_target_layer import proposal_target_layer as proposal_target_layer_py
+from rpn_msr.proposal_target_layer_2 import ProposalTargetLayer
 from .network import vgg16, Conv2d, np_to_variable, FC, tensor_to_variable
 from roi_pooling.modules.roi_pool import RoIPool
 from .fastrcnn.bbox_transform import bbox_transform_inv, clip_boxes
@@ -33,11 +34,11 @@ class RPN(nn.Module):
         super(RPN, self).__init__()
         self.features = vgg16()
         self.features = nn.DataParallel(self.features)
-        self.conv1 = Conv2d(512, 512, 3, same_padding=True)
-        self.score_conv = Conv2d(
-            512, len(self.anchor_scales) * 3 * 2, 1, relu=False)
-        self.bbox_conv = Conv2d(
-            512, len(self.anchor_scales) * 3 * 4, 1, relu=False)
+        self.conv1 = nn.DataParallel(Conv2d(512, 512, 3, same_padding=True))
+        self.score_conv = nn.DataParallel(Conv2d(
+            512, len(self.anchor_scales) * 3 * 2, 1, relu=False))
+        self.bbox_conv = nn.DataParallel(Conv2d(
+            512, len(self.anchor_scales) * 3 * 4, 1, relu=False))
 
         self.cross_entropy = None
         self.loss_box = None
@@ -130,12 +131,12 @@ class FastRCNN(nn.Module):
 
         # self.features = vgg16()
         self.rpn = RPN()
-
+        self.proposal_target_layer = ProposalTargetLayer(self.n_classes)
         self.roi_pool = RoIPool(7, 7, 1.0 / 16)
-        self.fc6 = FC(512 * 7 * 7, 4096)
-        self.fc7 = FC(4096, 4096)
-        self.score_fc = FC(4096, self.n_classes, relu=False)
-        self.bbox_fc = FC(4096, self.n_classes * 4, relu=False)
+        self.fc6 = nn.DataParallel(FC(512 * 7 * 7, 4096))
+        self.fc7 = nn.DataParallel(FC(4096, 4096))
+        self.score_fc = nn.DataParallel(FC(4096, self.n_classes, relu=False))
+        self.bbox_fc = nn.DataParallel(FC(4096, self.n_classes * 4, relu=False))
 
         self.cross_entropy = None
         self.loss_box = None
@@ -153,7 +154,7 @@ class FastRCNN(nn.Module):
 
         if self.training:
             roi_data = self.proposal_target_layer(
-                rois, gt_boxes, gt_boxes_index, self.n_classes)
+                rois, gt_boxes, gt_boxes_index)
             rois = roi_data[0]
 
         # Roi pool
@@ -177,61 +178,16 @@ class FastRCNN(nn.Module):
         label = roi_data[1].squeeze()
         fg_cnt = torch.sum(label.data.ne(0))
         bg_cnt = label.data.numel() - fg_cnt
-        # for log
-        if self.debug:
-            maxv, predict = cls_score.data.max(1)
-            # print predict
-            self.tp = torch.sum(predict[:fg_cnt].eq(
-                label.data[:fg_cnt])) if fg_cnt > 0 else 0
-            self.tf = torch.sum(predict[fg_cnt:].eq(label.data[fg_cnt:]))
-            self.fg_cnt = fg_cnt
-            self.bg_cnt = bg_cnt
-            print 'fg_cnt', fg_cnt
-            print 'bg_cnt', bg_cnt
-            print 'tp', self.tp
-            print 'cls_score.size()', cls_score.size()
 
         ce_weights = torch.ones(cls_score.size()[1])
-        ce_weights[0] = float(fg_cnt) / bg_cnt
+        ce_weights[0] = float(fg_cnt.item()) / bg_cnt.item()
         ce_weights = ce_weights.cuda()
         cross_entropy = F.cross_entropy(cls_score, label, weight=ce_weights)
         bbox_targets, bbox_inside_weights, bbox_outside_weights = roi_data[2:]
 
         loss_box = smooth_l1_loss(
-            bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights, dim=[1, 2, 3])
+            bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights, dim=[1])
         return cross_entropy, loss_box
-
-    @staticmethod
-    def proposal_target_layer(rpn_rois, gt_boxes, num_classes):
-        """
-        ----------
-        rpn_rois:  (1 x H x W x A, 5) [0, x1, y1, x2, y2]
-        gt_boxes: (G, 5) [x1 ,y1 ,x2, y2, class] int
-        num_classes
-        ----------
-        Returns
-        ----------
-        rois: (1 x H x W x A, 5) [0, x1, y1, x2, y2]
-        labels: (1 x H x W x A, 1) {0,1,...,_num_classes-1}
-        bbox_targets: (1 x H x W x A, K x4) [dx1, dy1, dx2, dy2]
-        bbox_inside_weights: (1 x H x W x A, Kx4) 0, 1 masks for the computing loss
-        bbox_outside_weights: (1 x H x W x A, Kx4) 0, 1 masks for the computing loss
-        """
-        rpn_rois = rpn_rois.data.cpu().numpy()
-        rois, labels, bbox_targets, bbox_inside_weights, bbox_outside_weights = \
-            proposal_target_layer_py(
-                rpn_rois, gt_boxes, num_classes)
-        # print labels.shape, bbox_targets.shape, bbox_inside_weights.shape
-        rois = np_to_variable(rois, is_cuda=True)
-        labels = np_to_variable(
-            labels, is_cuda=True, dtype=torch.LongTensor)
-        bbox_targets = np_to_variable(bbox_targets, is_cuda=True)
-        bbox_inside_weights = np_to_variable(
-            bbox_inside_weights, is_cuda=True)
-        bbox_outside_weights = np_to_variable(
-            bbox_outside_weights, is_cuda=True)
-
-        return rois, labels, bbox_targets, bbox_inside_weights, bbox_outside_weights
 
     def interpret(self, cls_prob, bbox_pred, rois, im_info, im_shape, nms=True, clip=True, min_score=0.0):
         # find class
@@ -290,100 +246,3 @@ class FastRCNN(nn.Module):
             [[float(target_size[2]), float(target_size[3]), 600. / min(origin_size)]])
 
         return img, im_info
-
-
-class FasterRCNN(FastRCNN):
-    """docstring for FasterRCNN"""
-
-    def __init__(self, classes, debug=False):
-        super(FasterRCNN, self).__init__(classes, debug=False)
-        assert classes is not None
-        self.classes = classes
-        self.n_classes = len(classes)
-
-        self.rpn = RPN()
-        self.roi_pool = RoIPool(7, 7, 1.0 / 16)
-        self.fc6 = FC(512 * 7 * 7, 4096)
-        self.fc7 = FC(4096, 4096)
-        self.score_fc = FC(4096, self.n_classes, relu=False)
-        self.bbox_fc = FC(4096, self.n_classes * 4, relu=False)
-
-        self.cross_entropy = None
-        self.loss_box = None
-
-        self.debug = debug
-
-    @property
-    def loss(self):
-        return self.cross_entropy + 10 * self.loss_box + self.rpn.loss
-
-    def forward(self, im_data, im_info, gt_boxes=None, rois=None):
-
-        if rois is None:
-            features, rois = self.rpn(
-                im_data, im_info, gt_boxes)
-        else:
-            rois = tensor_to_variable(rois)
-            im_data = tensor_to_variable(im_data)
-            features = self.features(im_data)
-
-        if self.training:
-            roi_data = self.proposal_target_layer(
-                rois, gt_boxes, self.n_classes)
-            rois = roi_data[0]
-
-        # Roi pool
-        pooled_features = self.roi_pool(features, rois)
-        x = pooled_features.view(pooled_features.size()[0], -1)
-        x = self.fc6(x)
-        x = F.dropout(x, training=self.training)
-        x = self.fc7(x)
-        x = F.dropout(x, training=self.training)
-        cls_score = self.score_fc(x)
-        cls_prob = F.softmax(cls_score)
-        bbox_pred = self.bbox_fc(x)
-
-        if self.training:
-            self.cross_entropy, self.loss_box = self.build_loss(
-                cls_score, bbox_pred, roi_data)
-
-        return cls_prob, bbox_pred, rois
-
-    def build_loss(self, cls_score, bbox_pred, roi_data):
-        label = roi_data[1].squeeze()
-        fg_cnt = torch.sum(label.data.ne(0))
-        print cls_score.shape
-        print label.shape
-        bg_cnt = label.data.numel() - fg_cnt
-        # for log
-        if self.debug:
-            maxv, predict = cls_score.data.max(1)
-            # print predict
-            self.tp = torch.sum(predict[:fg_cnt].eq(
-                label.data[:fg_cnt])) if fg_cnt > 0 else 0
-            self.tf = torch.sum(predict[fg_cnt:].eq(label.data[fg_cnt:]))
-            self.fg_cnt = fg_cnt
-            self.bg_cnt = bg_cnt
-            print 'fg_cnt', fg_cnt
-            print 'bg_cnt', bg_cnt
-            print 'tp', self.tp
-            print 'cls_score.size()', cls_score.size()
-
-        ce_weights = torch.ones(cls_score.size()[1])
-        ce_weights[0] = float(fg_cnt) / bg_cnt
-        ce_weights = ce_weights.cuda()
-        cross_entropy = F.cross_entropy(cls_score, label, weight=ce_weights)
-        bbox_targets, bbox_inside_weights, bbox_outside_weights = roi_data[2:]
-
-        loss_box = smooth_l1_loss(
-            bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights)
-        return cross_entropy, loss_box
-
-    def detect(self, image, thr=0.5):
-        self.eval()
-        im_data, im_info = self.get_image_blob(image)
-        cls_prob, bbox_pred, rois = self(im_data, im_info)
-        pred_boxes, scores, classes, rois = \
-            self.interpret(
-                cls_prob, bbox_pred, rois, im_info, im_info[0][:2], min_score=thr, nms=True)
-        return pred_boxes, scores, classes, rois, im_data

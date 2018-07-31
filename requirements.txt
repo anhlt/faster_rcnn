@@ -7,3 +7,5 @@ requests
 pycrayon
 nose
 requests
+graphviz
+git+https://github.com/szagoruyko/pytorchviz
