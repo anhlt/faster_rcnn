@@ -8,7 +8,7 @@ from .rpn_msr.proposal_layer_2 import ProposalLayer
 from .rpn_msr.anchor_target_layer_2 import AnchorTargerLayer
 from rpn_msr.proposal_target_layer import proposal_target_layer as proposal_target_layer_py
 from rpn_msr.proposal_target_layer_2 import ProposalTargetLayer
-from .network import vgg16, Conv2d, np_to_variable, FC, tensor_to_variable
+from .network import vgg16, Conv2d, np_to_variable, FC, tensor_to_variable, inception
 from roi_pooling.modules.roi_pool import RoIPool
 from .fastrcnn.bbox_transform import bbox_transform_inv, clip_boxes
 from .fastrcnn.nms_wrapper import nms
@@ -32,9 +32,9 @@ class RPN(nn.Module):
 
     def __init__(self):
         super(RPN, self).__init__()
-        self.features = vgg16()
+        self.features = inception()
         self.features = nn.DataParallel(self.features)
-        self.conv1 = nn.DataParallel(Conv2d(512, 512, 3, same_padding=True))
+        self.conv1 = nn.DataParallel(Conv2d(768, 512, 3, same_padding=True))
         self.score_conv = nn.DataParallel(Conv2d(
             512, len(self.anchor_scales) * 3 * 2, 1, relu=False))
         self.bbox_conv = nn.DataParallel(Conv2d(
@@ -133,7 +133,7 @@ class FastRCNN(nn.Module):
         self.rpn = RPN()
         self.proposal_target_layer = ProposalTargetLayer(self.n_classes)
         self.roi_pool = RoIPool(7, 7, 1.0 / 16)
-        self.fc6 = nn.DataParallel(FC(512 * 7 * 7, 4096))
+        self.fc6 = nn.DataParallel(FC(768 * 7 * 7, 4096))
         self.fc7 = nn.DataParallel(FC(4096, 4096))
         self.score_fc = nn.DataParallel(FC(4096, self.n_classes, relu=False))
         self.bbox_fc = nn.DataParallel(FC(4096, self.n_classes * 4, relu=False))
