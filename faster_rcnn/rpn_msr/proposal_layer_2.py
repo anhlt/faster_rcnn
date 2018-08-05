@@ -56,7 +56,6 @@ class ProposalLayer(nn.Module):
         proposals = clip_boxes(proposals, im_info)
         scores_keep = scores
         proposals_keep = proposals
-
         order = scores_keep.reshape((batch_size, -1)).argsort(axis=1)[:, ::-1]
 
         output = np.zeros((batch_size, post_nms_topN, 5))
@@ -66,13 +65,12 @@ class ProposalLayer(nn.Module):
 
             order_single = order[i]
             order_single = order_single[:pre_nms_topN].ravel()
-
             proposals_single = proposals_single[order_single]
             scores_single = scores_single[order_single]
-
             keep = nms(np.hstack((proposals_single, scores_single)), nms_thresh)
             keep = keep[:post_nms_topN]
             logger.debug(order_single[keep[:10]])
+
             proposals_single = proposals_single[keep]
             scores_single = scores_single[keep]
             num_proposal = proposals_single.shape[0]
