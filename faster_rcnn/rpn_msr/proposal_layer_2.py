@@ -8,7 +8,7 @@ import torch
 import logging
 
 logger = logging.getLogger("root")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 
 class ProposalLayer(nn.Module):
