@@ -10,7 +10,7 @@ import torch
 import logging
 
 logger = logging.getLogger("root")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 
 class ProposalTargetLayer(nn.Module):
@@ -101,8 +101,8 @@ class ProposalTargetLayer(nn.Module):
             current_labels[fg_rois_per_this_image:] = 0
             current_rois = current_rois[keep_inds]
 
-            logger.debug(gt_boxes.shape)
-            logger.debug(current_gt_boxes.shape)
+            # logger.debug(gt_boxes.shape)
+            # logger.debug(current_gt_boxes.shape)
 
             current_bbox_target_data = self._compute_targets(
                 current_rois[:, 1:5], current_gt_boxes[gt_assignment[keep_inds], :4], current_labels)
