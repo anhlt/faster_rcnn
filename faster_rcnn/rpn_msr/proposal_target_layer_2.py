@@ -7,6 +7,11 @@ from ..utils.cython_bbox import bbox_overlaps
 from ..config import cfg
 from ..network import np_to_variable
 import torch
+import logging
+
+logger = logging.getLogger("root")
+logger.setLevel(logging.DEBUG)
+
 
 class ProposalTargetLayer(nn.Module):
     def __init__(self, num_classes, is_cuda=True):
@@ -28,7 +33,6 @@ class ProposalTargetLayer(nn.Module):
             example: [0, 0, 0, 1, 1, 2, 2]
         """
         all_rois = all_rois.cpu().detach().numpy()
-        batch_size = all_rois.shape[0]
 
         labels, rois, bbox_targets, bbox_inside_weights = self._sample_rois(
             all_rois, gt_boxes, gt_boxes_index, self.fg_rois_per_image, self.rois_per_image, self.num_classes)
@@ -97,8 +101,11 @@ class ProposalTargetLayer(nn.Module):
             current_labels[fg_rois_per_this_image:] = 0
             current_rois = current_rois[keep_inds]
 
+            # logger.debug(gt_boxes.shape)
+            # logger.debug(current_gt_boxes.shape)
+
             current_bbox_target_data = self._compute_targets(
-                current_rois[:, 1:5], gt_boxes[gt_assignment[keep_inds], :4], current_labels)
+                current_rois[:, 1:5], current_gt_boxes[gt_assignment[keep_inds], :4], current_labels)
 
             current_bbox_targets, current_bbox_inside_weights = self._get_bbox_regression_labels(
                 current_bbox_target_data, num_classes)

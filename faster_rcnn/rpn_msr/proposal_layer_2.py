@@ -5,6 +5,10 @@ from ..fastrcnn.bbox_transform import bbox_transform_inv, clip_boxes
 from ..fastrcnn.nms_wrapper import nms
 from ..config import cfg
 import torch
+import logging
+
+logger = logging.getLogger("root")
+logger.setLevel(logging.DEBUG)
 
 
 class ProposalLayer(nn.Module):
@@ -52,10 +56,7 @@ class ProposalLayer(nn.Module):
         proposals = clip_boxes(proposals, im_info)
         scores_keep = scores
         proposals_keep = proposals
-
         order = scores_keep.reshape((batch_size, -1)).argsort(axis=1)[:, ::-1]
-
-        order = order[:, :pre_nms_topN]
 
         output = np.zeros((batch_size, post_nms_topN, 5))
         for i in range(batch_size):
@@ -63,11 +64,13 @@ class ProposalLayer(nn.Module):
             scores_single = scores_keep[i]
 
             order_single = order[i]
+            order_single = order_single[:pre_nms_topN].ravel()
             proposals_single = proposals_single[order_single]
             scores_single = scores_single[order_single]
-
             keep = nms(np.hstack((proposals_single, scores_single)), nms_thresh)
             keep = keep[:post_nms_topN]
+            logger.debug(order_single[keep[:10]])
+
             proposals_single = proposals_single[keep]
             scores_single = scores_single[keep]
             num_proposal = proposals_single.shape[0]

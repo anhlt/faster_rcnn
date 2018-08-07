@@ -27,7 +27,7 @@ RUN /opt/conda/bin/conda install conda-build && \
 
 ENV PATH /opt/conda/envs/pytorch/bin:$PATH
 
-RUN conda install -y --name pytorch pytorch torchvision cuda80 -c pytorch
+RUN conda install -y --name pytorch pytorch==0.4.0 torchvision cuda80 -c pytorch
 RUN conda install -y --name pytorch seaborn opencv cython
 RUN conda install -y --name pytorch -c anaconda protobuf 
 

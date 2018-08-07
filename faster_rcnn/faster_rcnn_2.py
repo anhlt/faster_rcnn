@@ -156,6 +156,9 @@ class FastRCNN(nn.Module):
             roi_data = self.proposal_target_layer(
                 rois, gt_boxes, gt_boxes_index)
             rois = roi_data[0]
+        else:
+            all_rois = rois.cpu().detach().numpy()[0]
+            rois = np_to_variable(all_rois)
 
         # Roi pool
         pooled_features = self.roi_pool(features, rois)
@@ -204,9 +207,10 @@ class FastRCNN(nn.Module):
             box_deltas[i, (inds[i] * 4): (inds[i] * 4 + 4)] for i in range(len(inds))
         ], dtype=np.float)
         boxes = rois.data.cpu().numpy()[keep, 1:5]
-        pred_boxes = bbox_transform_inv(boxes, box_deltas)
+        pred_boxes = bbox_transform_inv(boxes[np.newaxis, :], box_deltas[np.newaxis, :])
         if clip:
             pred_boxes = clip_boxes(pred_boxes, im_shape)
+        pred_boxes = pred_boxes[0]
         if nms and pred_boxes.shape[0] > 0:
             pred_boxes, scores, inds = nms_detections(
                 pred_boxes, scores, 0.1, inds=inds)
@@ -216,7 +220,9 @@ class FastRCNN(nn.Module):
     def detect(self, image, thr=0.5):
         self.eval()
         im_data, im_info = self.get_image_blob(image)
-        cls_prob, bbox_pred, rois = self(im_data, im_info)
+        cls_prob, bbox_pred, rois = self(im_data, im_info[:, :2])
+        cls_prob = cls_prob.squeeze()
+        bbox_pred = bbox_pred.squeeze()
         pred_boxes, scores, classes, rois = \
             self.interpret(
                 cls_prob, bbox_pred, rois, im_info, im_info[0][:2], min_score=thr, nms=True)
