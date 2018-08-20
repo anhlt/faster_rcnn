@@ -69,7 +69,6 @@ class ProposalLayer(nn.Module):
             scores_single = scores_single[order_single]
             keep = nms(np.hstack((proposals_single, scores_single)), nms_thresh)
             keep = keep[:post_nms_topN]
-            logger.debug(order_single[keep[:10]])
 
             proposals_single = proposals_single[keep]
             scores_single = scores_single[keep]
