@@ -5,6 +5,7 @@ easydict==1.7
 joblib
 requests
 pycrayon
-keras
-tensorflow-gpu
-jupyterthemes
+nose
+requests
+graphviz
+git+https://github.com/szagoruyko/pytorchviz

@@ -3,6 +3,8 @@ import torch.nn as nn
 from torch.autograd import Variable
 from torchvision.models.vgg import vgg16 as _vgg16
 import numpy as np
+from torchvision.models.inception import inception_v3
+import torch.nn.functional as F
 
 
 class Conv2d(nn.Module):
@@ -63,6 +65,7 @@ def smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_we
     sigma_2 = sigma ** 2
     box_diff = bbox_pred - bbox_targets
     in_box_diff = bbox_inside_weights * box_diff
+
     abs_in_box_diff = torch.abs(in_box_diff)
     smoothL1_sign = (abs_in_box_diff < 1. / sigma_2).detach().float()
     in_loss_box = torch.pow(in_box_diff, 2) * (sigma_2 / 2.) * smoothL1_sign \
@@ -84,6 +87,72 @@ def vgg16():
                 param.requires_grad = False
 
     return feature_model
+
+
+class InceptionFeatureExtraction(nn.Module):
+    """docstring for InceptionFeatureExtraction"""
+
+    def __init__(self, inception, transform_input=False):
+        super(InceptionFeatureExtraction, self).__init__()
+        self.transform_input = transform_input
+        self.Conv2d_1a_3x3 = inception.Conv2d_1a_3x3
+        self.Conv2d_2a_3x3 = inception.Conv2d_2a_3x3
+        self.Conv2d_2b_3x3 = inception.Conv2d_2b_3x3
+        self.Conv2d_3b_1x1 = inception.Conv2d_3b_1x1
+        self.Conv2d_4a_3x3 = inception.Conv2d_4a_3x3
+        self.Mixed_5b = inception.Mixed_5b
+        self.Mixed_5c = inception.Mixed_5c
+        self.Mixed_5d = inception.Mixed_5d
+        self.Mixed_6a = inception.Mixed_6a
+        self.Mixed_6b = inception.Mixed_6b
+        self.Mixed_6c = inception.Mixed_6c
+        self.Mixed_6d = inception.Mixed_6d
+        self.Mixed_6e = inception.Mixed_6e
+
+    def forward(self, x):
+        if self.transform_input:
+            x = x.clone()
+            x[:, 0] = x[:, 0] * (0.229 / 0.5) + (0.485 - 0.5) / 0.5
+            x[:, 1] = x[:, 1] * (0.224 / 0.5) + (0.456 - 0.5) / 0.5
+            x[:, 2] = x[:, 2] * (0.225 / 0.5) + (0.406 - 0.5) / 0.5
+        # 299 x 299 x 3
+        x = self.Conv2d_1a_3x3(x)
+        # 149 x 149 x 32
+        x = self.Conv2d_2a_3x3(x)
+        # 147 x 147 x 32
+        x = self.Conv2d_2b_3x3(x)
+        # 147 x 147 x 64
+        x = F.max_pool2d(x, kernel_size=3, stride=2)
+        # 73 x 73 x 64
+        x = self.Conv2d_3b_1x1(x)
+        # 73 x 73 x 80
+        x = self.Conv2d_4a_3x3(x)
+        # 71 x 71 x 192
+        x = F.max_pool2d(x, kernel_size=3, stride=2)
+        # 35 x 35 x 192
+        x = self.Mixed_5b(x)
+        # 35 x 35 x 256
+        x = self.Mixed_5c(x)
+        # 35 x 35 x 288
+        x = self.Mixed_5d(x)
+        # 35 x 35 x 288
+        x = self.Mixed_6a(x)
+        # 17 x 17 x 768
+        x = self.Mixed_6b(x)
+        # 17 x 17 x 768
+        x = self.Mixed_6c(x)
+        # 17 x 17 x 768
+        x = self.Mixed_6d(x)
+        # 17 x 17 x 768
+        x = self.Mixed_6e(x)
+        # 17 x 17 x 768
+        return x
+
+
+def inception():
+    models = inception_v3(pretrained=True)
+
+    return InceptionFeatureExtraction(models)
 
 
 def np_to_variable(x, is_cuda=True, dtype=torch.FloatTensor):

@@ -167,7 +167,7 @@ __global__ void ROIPoolBackward(const int nthreads, const float* top_diff,
 
             for (int ph = phstart; ph < phend; ++ph) {
                 for (int pw = pwstart; pw < pwend; ++pw) {
-                    if (offset_argmax_data[(c * pooled_height + ph) * pooled_width + pw] == index)
+                    if (offset_argmax_data[(c * pooled_height + ph) * pooled_width + pw] == (c * height + h) * width + w)
                     {
                         gradient += offset_top_diff[(c * pooled_height + ph) * pooled_width + pw];
                     }
