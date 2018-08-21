@@ -9,6 +9,10 @@ from ..config import cfg
 from torch import Tensor
 import torch
 from ..network import np_to_variable
+import logging
+
+logger = logging.getLogger("root")
+logger.setLevel(logging.DEBUG)
 
 
 class AnchorTargerLayer(nn.Module):
@@ -197,7 +201,15 @@ class AnchorTargerLayer(nn.Module):
             current_batch_overlaps = overlaps[:, batch_boxes_index == i]
             current_batch_boxes = batch_boxes[[batch_boxes_index == i]]
 
-            argmax_overlaps = current_batch_overlaps.argmax(axis=1)  # (A)
+            try:
+                argmax_overlaps = current_batch_overlaps.argmax(axis=1)  # (A)
+            except ValueError as e:
+                logger.debug(i)
+                logger.debug(current_batch_overlaps.shape)
+                logger.debug(batch_boxes_index)
+                logger.debug(batch_boxes)
+                raise e
+
             max_overlaps = current_batch_overlaps[np.arange(
                 inside_anchor_indexes.shape[0]), argmax_overlaps]
             gt_argmax_overlaps = current_batch_overlaps.argmax(axis=0)  # G
