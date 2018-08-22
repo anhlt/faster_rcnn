@@ -197,11 +197,11 @@ __C.TEST.HAS_RPN = True
 # Test using these proposals
 __C.TEST.PROPOSAL_METHOD = 'mcg'
 
-## NMS threshold used on RPN proposals
+# NMS threshold used on RPN proposals
 __C.TEST.RPN_NMS_THRESH = 0.8
-## Number of top scoring boxes to keep before apply NMS to RPN proposals
+# Number of top scoring boxes to keep before apply NMS to RPN proposals
 __C.TEST.RPN_PRE_NMS_TOP_N = 12000
-## Number of top scoring boxes to keep after applying NMS to RPN proposals
+# Number of top scoring boxes to keep after applying NMS to RPN proposals
 __C.TEST.RPN_POST_NMS_TOP_N = 2000
 # Proposal height and width both need to be greater than RPN_MIN_SIZE (at orig image scale)
 __C.TEST.RPN_MIN_SIZE = 16
@@ -237,8 +237,6 @@ __C.DATA_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'data', 'mscoco'))
 # Model directory
 __C.MODELS_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'models', 'pascal_voc'))
 
-# Name (or path to) the matlab executable
-__C.MATLAB = 'matlab'
 
 # Place outputs under an experiments directory
 __C.EXP_DIR = 'default'
@@ -250,6 +248,9 @@ __C.USE_GPU_NMS = True
 # Default GPU device id
 __C.GPU_ID = 0
 
+__C.FONT_PATH = osp.abspath(
+    osp.join(__C.ROOT_DIR, 'font', 'FiraMono-Medium.otf'))
+
 
 def get_output_dir(imdb, weights_filename):
     """Return the directory where experimental artifacts are placed.
@@ -258,7 +259,8 @@ def get_output_dir(imdb, weights_filename):
     A canonical path is built using the name from an imdb and a network
     (if not None).
     """
-    outdir = osp.abspath(osp.join(__C.ROOT_DIR, 'output', __C.EXP_DIR, imdb.name))
+    outdir = osp.abspath(
+        osp.join(__C.ROOT_DIR, 'output', __C.EXP_DIR, imdb.name))
     if weights_filename is not None:
         outdir = osp.join(outdir, weights_filename)
     if not os.path.exists(outdir):
@@ -272,7 +274,7 @@ def get_log_dir(imdb):
     A canonical path is built using the name from an imdb and a network
     (if not None).
     """
-    log_dir = osp.abspath( \
+    log_dir = osp.abspath(
         osp.join(__C.ROOT_DIR, 'logs', __C.LOG_DIR, imdb.name, strftime("%Y-%m-%d-%H-%M-%S", localtime())))
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)

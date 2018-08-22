@@ -1,11 +1,7 @@
-seaborn==0.7.1
-scikit-learn
 jupyter
 easydict==1.7
-joblib
 requests
 pycrayon
 nose
-requests
 graphviz
 git+https://github.com/szagoruyko/pytorchviz
