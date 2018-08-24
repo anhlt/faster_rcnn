@@ -7,12 +7,36 @@ Welcome to Faster RCNN's documentation!
 =======================================
 
 Contents:
+---------
+
+.. toctree::
+    :maxdepth: 1
+
+    user/install
+
+
+
+Tutorial
+--------
+
+This part of the documentation, tutorial to train faster-rcnn on custom datasets
+
+.. toctree::
+    :maxdepth: 2
+
+    tutorial/mscoco
+    tutorial/voc
+
+The API Documentation / Guide
+-----------------------------
+
+If you are looking for information on a specific function, class, or method,
+this part of the documentation is for you.
 
 .. toctree::
    :maxdepth: 2
 
-   user/intro
-   user/install
+   api
 
 
 

@@ -16,10 +16,34 @@
 import sys
 import os
 
+autodoc_mock_imports = [
+    'torch', 
+    'torch.nn', 
+    'torch.nn.functional',
+    'Variable',
+    'torch.autograd', 
+    'pygtk', 
+    'gtk', 
+    'gobject', 
+    'argparse', 
+    'numpy', 
+    'pandas',
+    'faster_rcnn.fastrcnn.nms_wrapper',
+    'faster_rcnn.rpn_msr',
+    'faster_rcnn.network',
+    'faster_rcnn.rpn_msr.anchor_target_layer',
+    'torchvision.models',
+    'faster_rcnn.roi_pooling.modules.roi_pool',
+    'network',
+    'PIL',
+    'torchvision'
+]
+
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('..'))
 
 # -- General configuration ------------------------------------------------
 
@@ -33,6 +57,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
+    'sphinx.ext.napoleon',
 ]
 
 # Add any paths that contain templates here, relative to this directory.

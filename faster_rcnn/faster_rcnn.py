@@ -6,11 +6,10 @@ import numpy as np
 from .rpn_msr.proposal_layer import ProposalLayer
 from .rpn_msr.anchor_target_layer import AnchorTargerLayer
 from rpn_msr.proposal_target_layer import ProposalTargetLayer
-from .network import vgg16, Conv2d, np_to_variable, FC, tensor_to_variable
+from .network import vgg16, Conv2d, np_to_variable, FC, tensor_to_variable, smooth_l1_loss
 from roi_pooling.modules.roi_pool import RoIPool
 from .fastrcnn.bbox_transform import bbox_transform_inv, clip_boxes
 from .fastrcnn.nms_wrapper import nms
-from network import smooth_l1_loss
 from PIL import Image
 from torchvision import transforms
 
@@ -25,6 +24,31 @@ def nms_detections(pred_boxes, scores, nms_thresh, inds=None):
 
 
 class RPN(nn.Module):
+
+    """Summary
+    
+    Attributes
+    ----------
+    anchor_scales : list
+        Description
+    anchor_target_layer : TYPE
+        Description
+    bbox_conv : TYPE
+        Description
+    conv1 : TYPE
+        Description
+    cross_entropy : TYPE
+        Description
+    features : TYPE
+        Description
+    loss_box : TYPE
+        Description
+    proposal_layer : TYPE
+        Description
+    score_conv : TYPE
+        Description
+    """
+    
     _feat_stride = [16, ]
     anchor_scales = [4, 8, 16, 32]
 
@@ -63,7 +87,24 @@ class RPN(nn.Module):
     def forward(self,
                 im_data,
                 im_info, gt_boxes=None, gt_boxes_index=[]):
-
+        """Summary
+        
+        Parameters
+        ----------
+        im_data : TYPE
+            Description
+        im_info : TYPE
+            Description
+        gt_boxes : None, optional
+            Description
+        gt_boxes_index : list, optional
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         features, rpn_bbox_pred, rpn_cls_score = self._computer_forward(
             im_data)
         batch_size = features.shape[0]
@@ -116,7 +157,39 @@ class RPN(nn.Module):
 
 
 class FastRCNN(nn.Module):
-    """docstring for FasterRCNN"""
+    """docstring for FasterRCNN
+    
+    Attributes
+    ----------
+    bbox_fc : TYPE
+        Description
+    classes : TYPE
+        Description
+    cross_entropy : TYPE
+        Description
+    debug : TYPE
+        Description
+    fc6 : TYPE
+        Description
+    fc7 : TYPE
+        Description
+    loss_box : TYPE
+        Description
+    MAX_SIZE : int
+        Description
+    n_classes : TYPE
+        Description
+    proposal_target_layer : TYPE
+        Description
+    roi_pool : TYPE
+        Description
+    rpn : TYPE
+        Description
+    SCALES : tuple
+        Description
+    score_fc : TYPE
+        Description
+    """
 
     SCALES = (600, )
     MAX_SIZE = 1000
@@ -143,10 +216,34 @@ class FastRCNN(nn.Module):
 
     @property
     def loss(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         return self.cross_entropy + 10 * self.loss_box + self.rpn.loss
 
     def forward(self, im_data, im_info, gt_boxes=None, gt_boxes_index=[]):
-
+        """Summary
+        
+        Parameters
+        ----------
+        im_data : TYPE
+            Description
+        im_info : TYPE
+            Description
+        gt_boxes : None, optional
+            Description
+        gt_boxes_index : list, optional
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         features, rois = self.rpn(
             im_data, im_info, gt_boxes, gt_boxes_index)
 
@@ -228,12 +325,19 @@ class FastRCNN(nn.Module):
 
     def get_image_blob(self, im):
         """Converts an image into a network input.
-        Arguments:
-            im (ndarray): a color image in BGR order
-        Returns:
-            blob (ndarray): a data blob holding an image pyramid
-            im_scale_factors (list): list of image scales (relative to im) used
-                in the image pyramid
+        
+        Parameters
+        ----------
+        im : ndarray
+            a color image in BGR order
+        
+        Returns
+        -------
+        blob : ndarray
+            a data blob holding an image pyramid
+        im_scale_factors : list
+            list of image scales (relative to im) used
+            in the image pyramid
         """
         transform = transforms.Compose([
             transforms.Resize(600),
