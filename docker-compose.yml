@@ -16,18 +16,6 @@ services:
         command: jupyter notebook --ip=0.0.0.0 --port=8889 --NotebookApp.password='sha1:4018b457b8a9:84c65a176a549c58609c3cf38fa50b4b1b12b808'
         links:
             - "crayon"
-    anaconda:
-        image: "tuananhbk/mlpractice:gpu" 
-        ports:
-            - "19361:19361"
-        volumes:
-            - /home/anh/.config/sublime-text-3/Packages/Anaconda:/opt/anaconda
-            - "./faster_rcnn:/data/faster_rcnn"
-        depends_on:
-            - python
-        user: root
-        entrypoint: /opt/anaconda/anaconda_server/docker/start python 19361 docker /opt/anaconda
-        tty: true
     crayon:
         image: "alband/crayon"
         ports:
