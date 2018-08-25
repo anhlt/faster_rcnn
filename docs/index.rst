@@ -20,6 +20,9 @@ Main features
 
 Install
 -------
+Clone at `https://github.com/anhlt/faster_rcnn <https://github.com/anhlt/faster_rcnn/>`_
+
+
 .. toctree::
     :maxdepth: 1
 
