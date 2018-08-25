@@ -17,6 +17,14 @@ logger.setLevel(logging.DEBUG)
 
 class AnchorTargerLayer(nn.Module):
 
+    """Calculate target for RPN network
+    
+    Attributes
+    ----------
+    is_cuda : Boolean
+    Using GPU or not
+    """
+    
     def __init__(self, feat_stride, anchor_scales, is_cuda=True):
         super(AnchorTargerLayer, self).__init__()
         self._feat_stride = feat_stride
@@ -29,6 +37,24 @@ class AnchorTargerLayer(nn.Module):
         self._allow_border = 0
 
     def forward(self, rpn_cls_score, gt_boxes, batch_boxes_index, im_info):
+        """Summary
+        
+        Parameters
+        ----------
+        rpn_cls_score : TYPE
+            Description
+        gt_boxes : TYPE
+            Description
+        batch_boxes_index : TYPE
+            Description
+        im_info : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         rpn_cls_score = rpn_cls_score.cpu().detach().numpy()
         # gt_boxes = gt_boxes.numpy()
         # im_info = im_info.numpy()
@@ -126,11 +152,29 @@ class AnchorTargerLayer(nn.Module):
         return np_to_variable(labels, self.is_cuda, dtype=torch.LongTensor), np_to_variable(bbox_targets, self.is_cuda), np_to_variable(bbox_inside_weights, self.is_cuda), np_to_variable(bbox_outside_weights, self.is_cuda)
 
     def backward(self, top, propagate_down, bottom):
-        """This layer does not propagate gradients."""
+        """This layer does not propagate gradients.
+        
+        Parameters
+        ----------
+        top : TYPE
+            Description
+        propagate_down : TYPE
+            Description
+        bottom : TYPE
+            Description
+        """
         pass
 
     def reshape(self, bottom, top):
-        """Reshaping happens during the call to forward."""
+        """Reshaping happens during the call to forward.
+        
+        Parameters
+        ----------
+        bottom : TYPE
+            Description
+        top : TYPE
+            Description
+        """
         pass
 
     def _create_anchors(self, feature_height, feature_width):
@@ -178,16 +222,31 @@ class AnchorTargerLayer(nn.Module):
         return ret
 
     def calculate_target(self, inside_anchors, batch_size, inside_anchor_indexes, batch_boxes, batch_boxes_index):
-        '''
-        input:
-            - inside_anchors: [number_of_anchor * 4]
-            - batch_size: n
-            - inside_anchor_indexs: [number_of_anchor * 1]
-            - batch_boxes: list all ground truth boxes across all the image in batch
-            - batch_boxes_index: batch_index of correspond with each boxes
-                example: [0, 0, 0, 1, 1, 2, 2]
-        '''
-
+        """Summary
+        
+        Parameters
+        ----------
+        inside_anchors : :class:`numpy.array`
+            [number_of_anchor * 4]
+        batch_size : int
+            current batch size
+        inside_anchor_indexes : :class:`numpy.array`
+            [number_of_anchor * 1]
+        batch_boxes : TYPE
+            list all ground truth boxes across all the image in batch
+        batch_boxes_index : list[Int]
+            example: [0, 0, 0, 1, 1, 2, 2]
+        
+        Returns
+        -------
+        tuple(labels, bbox_targets)
+            Return caculated labels , and bbox_targers
+        
+        Raises
+        ------
+        e
+            Description
+        """
         labels = np.empty(
             (batch_size, inside_anchor_indexes.shape[0]), dtype=np.float32)
         bbox_targets = np.zeros(

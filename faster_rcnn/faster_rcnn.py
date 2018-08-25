@@ -25,13 +25,13 @@ def nms_detections(pred_boxes, scores, nms_thresh, inds=None):
 
 class RPN(nn.Module):
 
-    """Summary
+    """Generate region proposals
     
     Attributes
     ----------
     anchor_scales : list
-        Description
-    anchor_target_layer : TYPE
+        The scale of each anchor on particular point on feature maps.
+    anchor_target_layer : :func:`faster_rcnn.rpn_msr.anchor_target_layer.AnchorTargerLayer()`
         Description
     bbox_conv : TYPE
         Description
@@ -87,7 +87,7 @@ class RPN(nn.Module):
     def forward(self,
                 im_data,
                 im_info, gt_boxes=None, gt_boxes_index=[]):
-        """Summary
+        """Forward 
         
         Parameters
         ----------
@@ -102,8 +102,8 @@ class RPN(nn.Module):
         
         Returns
         -------
-        TYPE
-            Description
+        tuple(features, rois)
+            Return the features map and list of rois.
         """
         features, rpn_bbox_pred, rpn_cls_score = self._computer_forward(
             im_data)
