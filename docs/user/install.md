@@ -29,17 +29,23 @@ We provide the `Dockerfile` and `docker-compose.yml` for you to install the envi
 
 #### Create Docker image
 
-1. Use docker-compose to create a docker image
+1. Clone from github:
 
     ```bash
-    cd ~\workspace\faster_rcnn
+    git clone git@github.com:anhlt/faster_rcnn.git
+    ```
+
+2. Use docker-compose to create a docker image
+
+    ```bash
+    cd ~/workspace/faster_rcnn
     docker-compose up --build
     ```
 
 
 #### Compile Cython module 
 
-There are 3 modules need to compile `nms` , `roi_pooling` , `utils`. We need to exec `\bin\bash` on Docker image to build those modules
+There are 3 modules need to be compiled, `nms`, `roi_pooling`, `utils`. We need to exec `\bin\bash` on Docker image to build those modules
 
 
 ```bash

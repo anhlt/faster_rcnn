@@ -3,12 +3,23 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Faster RCNN's documentation!
-=======================================
+Welcome to Faster RCNN for `hooman`'s documentation!
+====================================================
 
-Contents:
----------
+Main features
+-------------
 
+- Faster RCNN for `hooman`
+- End to End Training support by default
+- Multibatch (images) support
+- Multi-GPU support
+- Docker images provided
+- Tensorboard support
+- Good *(not yet)* Documentation
+
+
+Install
+-------
 .. toctree::
     :maxdepth: 1
 

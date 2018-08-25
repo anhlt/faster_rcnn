@@ -16,6 +16,11 @@
 import sys
 import os
 
+import recommonmark
+from recommonmark.transform import AutoStructify
+
+
+
 autodoc_mock_imports = [
     'torch', 
     'torch.nn', 
@@ -29,10 +34,11 @@ autodoc_mock_imports = [
     'numpy', 
     'pandas',
     'faster_rcnn.fastrcnn.nms_wrapper',
-    'faster_rcnn.rpn_msr',
     'faster_rcnn.network',
-    'faster_rcnn.rpn_msr.anchor_target_layer',
     'torchvision.models',
+    'faster_rcnn.rpn_msr.generate_anchors',
+    'faster_rcnn.utils',
+    'easydict',
     'faster_rcnn.roi_pooling.modules.roi_pool',
     'network',
     'PIL',
@@ -315,3 +321,12 @@ texinfo_documents = [
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 #texinfo_no_detailmenu = False
+
+# At the bottom of conf.py
+def setup(app):
+    app.add_config_value('recommonmark_config', {
+            'url_resolver': lambda url: github_doc_root + url,
+            'auto_toc_tree_section': 'Contents',
+            'enable_eval_rst': True
+            }, True)
+    app.add_transform(AutoStructify)
