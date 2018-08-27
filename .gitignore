@@ -104,3 +104,5 @@ VOC2007/
 test_im/
 
 *.o
+
+docker-compose-dev.yaml
