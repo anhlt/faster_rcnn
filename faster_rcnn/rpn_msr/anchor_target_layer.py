@@ -317,7 +317,7 @@ class AnchorTargerLayer(nn.Module):
 
         Returns
         -------
-        (numpy.array((A, batch_size)), numpy.array((batch_size, A, 4)))
+        (:class:`numpy.array((A, batch_size))`, :class:`numpy.array((batch_size, A, 4))`)
             Return caculated labels , and bbox_targers
         """
         labels = np.empty(
