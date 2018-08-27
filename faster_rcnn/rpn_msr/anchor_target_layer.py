@@ -1,14 +1,13 @@
 import torch.nn as nn
 import numpy as np
 import numpy.random as npr
-from torch.autograd import Variable
 from .generate_anchors import generate_anchors
 from ..utils.cython_bbox import bbox_overlaps
 from ..fastrcnn.bbox_transform import bbox_transform
 from ..config import cfg
 from torch import Tensor
 import torch
-from ..network import np_to_variable
+from ..network import np_to_tensor
 import logging
 
 logger = logging.getLogger("root")
@@ -149,7 +148,7 @@ class AnchorTargerLayer(nn.Module):
         bbox_outside_weights = bbox_outside_weights.reshape(
             (batch_size, feature_height, feature_width, A * 4)).transpose((0, 3, 1, 2))
 
-        return np_to_variable(labels, self.is_cuda, dtype=torch.LongTensor), np_to_variable(bbox_targets, self.is_cuda), np_to_variable(bbox_inside_weights, self.is_cuda), np_to_variable(bbox_outside_weights, self.is_cuda)
+        return np_to_tensor(labels, self.is_cuda, dtype=torch.LongTensor), np_to_tensor(bbox_targets, self.is_cuda), np_to_tensor(bbox_inside_weights, self.is_cuda), np_to_tensor(bbox_outside_weights, self.is_cuda)
 
     def backward(self, top, propagate_down, bottom):
         """This layer does not propagate gradients.

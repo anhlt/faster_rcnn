@@ -1,12 +1,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
 import numpy as np
 from .rpn_msr.proposal_layer import ProposalLayer
 from .rpn_msr.anchor_target_layer import AnchorTargerLayer
 from rpn_msr.proposal_target_layer import ProposalTargetLayer
-from .network import vgg16, Conv2d, np_to_variable, FC, tensor_to_variable, smooth_l1_loss
+from .network import vgg16, Conv2d, np_to_tensor, FC, smooth_l1_loss
 from roi_pooling.modules.roi_pool import RoIPool
 from .fastrcnn.bbox_transform import bbox_transform_inv, clip_boxes
 from .fastrcnn.nms_wrapper import nms
@@ -74,7 +73,6 @@ class RPN(nn.Module):
         return self.cross_entropy + 10 * self.loss_box
 
     def _computer_forward(self, im_data):
-        im_data = tensor_to_variable(im_data)
         features = self.features(im_data)  # (N, 512, W, H)
         rpn_conv1 = self.conv1(features)  # (N, 512, W, H)
 
@@ -137,7 +135,7 @@ class RPN(nn.Module):
             0, 2, 3, 1).contiguous().view(-1, 2)  # batch * h * w * a , 2
         rpn_label = rpn_data[0].permute(0, 2, 3, 1).contiguous().view(-1)
 
-        rpn_keep = Variable(
+        rpn_keep = torch.tensor(
             rpn_label.data.ne(-1).nonzero().squeeze()).cuda()
 
         rpn_cls_score = torch.index_select(rpn_cls_score, 0, rpn_keep)
@@ -253,7 +251,7 @@ class FastRCNN(nn.Module):
             rois = roi_data[0]
         else:
             all_rois = rois.cpu().detach().numpy()[0]
-            rois = np_to_variable(all_rois)
+            rois = np_to_tensor(all_rois)
 
         # Roi pool
         pooled_features = self.roi_pool(features, rois)
