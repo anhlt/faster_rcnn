@@ -167,7 +167,7 @@ class AnchorTargerLayer(nn.Module):
 
     def reshape(self, bottom, top):
         """Reshaping happens during the call to forward.
-        
+
         Parameters
         ----------
         bottom : TYPE
@@ -178,6 +178,20 @@ class AnchorTargerLayer(nn.Module):
         pass
 
     def _create_anchors(self, feature_height, feature_width):
+        """Create all anchors given features height, width.
+
+        Parameters
+        ----------
+        feature_height : int
+            feature map height
+        feature_width : int
+            feature map width
+
+        Returns
+        -------
+        :class:`numpy.array`
+            Anchors
+        """
         shift_x = np.arange(0, feature_width) * self._feat_stride
         shift_y = np.arange(0, feature_height) * self._feat_stride
 
