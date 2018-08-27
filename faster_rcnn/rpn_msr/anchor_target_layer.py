@@ -18,14 +18,28 @@ logger.setLevel(logging.DEBUG)
 class AnchorTargerLayer(nn.Module):
 
     """Calculate target for RPN network
-    
+
     Attributes
     ----------
-    is_cuda : Boolean
-    Using GPU or not
+    is_cuda : bool
+        Using GPU or not
     """
-    
+
     def __init__(self, feat_stride, anchor_scales, is_cuda=True):
+        """Summary
+
+        Parameters
+        ----------
+        feat_stride : class::`numpy.array`
+            The Ratio between original image size and the convolutional feature (feature maps),
+            Used to calculate anchors from a point in convolutional feature into the original image.
+
+            Example: np.array([16. ,])
+        anchor_scales : class::`numpy.array`
+            Description
+        is_cuda : bool, optional
+            Description
+        """
         super(AnchorTargerLayer, self).__init__()
         self._feat_stride = feat_stride
         self._anchor_scales = anchor_scales
@@ -38,7 +52,7 @@ class AnchorTargerLayer(nn.Module):
 
     def forward(self, rpn_cls_score, gt_boxes, batch_boxes_index, im_info):
         """Summary
-        
+
         Parameters
         ----------
         rpn_cls_score : TYPE
@@ -47,13 +61,25 @@ class AnchorTargerLayer(nn.Module):
             Description
         batch_boxes_index : TYPE
             Description
-        im_info : TYPE
-            Description
-        
+        im_info : torch.Tensor([[im_height, im_width]])
+            Original Image size
+
         Returns
         -------
         TYPE
             Description
+
+        Examples
+        --------
+        These are written in doctest format, and should illustrate how to
+        use the function.
+
+        >>> np.add(1, 2)
+        3
+
+
+
+
         """
         rpn_cls_score = rpn_cls_score.cpu().detach().numpy()
         # gt_boxes = gt_boxes.numpy()
@@ -152,29 +178,9 @@ class AnchorTargerLayer(nn.Module):
         return np_to_variable(labels, self.is_cuda, dtype=torch.LongTensor), np_to_variable(bbox_targets, self.is_cuda), np_to_variable(bbox_inside_weights, self.is_cuda), np_to_variable(bbox_outside_weights, self.is_cuda)
 
     def backward(self, top, propagate_down, bottom):
-        """This layer does not propagate gradients.
-        
-        Parameters
-        ----------
-        top : TYPE
-            Description
-        propagate_down : TYPE
-            Description
-        bottom : TYPE
-            Description
-        """
         pass
 
     def reshape(self, bottom, top):
-        """Reshaping happens during the call to forward.
-        
-        Parameters
-        ----------
-        bottom : TYPE
-            Description
-        top : TYPE
-            Description
-        """
         pass
 
     def _create_anchors(self, feature_height, feature_width):
@@ -198,6 +204,22 @@ class AnchorTargerLayer(nn.Module):
         return all_anchors
 
     def _filter_outside_anchors(self, all_anchors, im_height, im_width):
+        """Remove outside anchors from generated anchors
+
+        Parameters
+        ----------
+        all_anchors : TYPE
+            Description
+        im_height : TYPE
+            Description
+        im_width : TYPE
+            Description
+
+        Returns
+        -------
+        tuple(inside_anchors, index_of_inside_anchors)
+            Return all inside anchors and its indexes
+        """
         inds_inside = np.where(
             (all_anchors[:, 0] >= - self._allow_border) &
             (all_anchors[:, 1] >= - self._allow_border) &
@@ -223,29 +245,44 @@ class AnchorTargerLayer(nn.Module):
 
     def calculate_target(self, inside_anchors, batch_size, inside_anchor_indexes, batch_boxes, batch_boxes_index):
         """Summary
-        
+
         Parameters
         ----------
         inside_anchors : :class:`numpy.array`
-            [number_of_anchor * 4]
+            List all anchors that lay inside the original images.
+            Shape: [number_of_anchor * 4]
         batch_size : int
-            current batch size
+            Current batch size
         inside_anchor_indexes : :class:`numpy.array`
-            [number_of_anchor * 1]
-        batch_boxes : TYPE
-            list all ground truth boxes across all the image in batch
+            Indexes of inside anchors.
+            Shape: [number_of_anchor * 1]
+        batch_boxes : list of numpy.array
+            list all ground truth boxes across all the images in batch
+            example:
+
+            >>> batch_boxes
+            [[  48.57142857  465.71428571  537.14285714 1774.28571429]
+             [ 220.         1065.71428571  382.85714286 1771.42857143]
+             [ 326.76056338  315.49295775  394.36619718  580.28169014]
+             [  76.05633803  290.14084507  242.25352113  788.73239437]
+             [  11.26760563    8.45070423  585.91549296 1769.01408451]
+             [ 178.125       221.875       287.5         975.        ]
+             [ 321.875       334.375       434.375       984.375     ]]
+
         batch_boxes_index : list[Int]
-            example: [0, 0, 0, 1, 1, 2, 2]
-        
+            Index of image in batch,which boxes belong.
+            Example:
+            There 3 images in current batch, and 6 boxes inside that 3 images. Look at the `batch_boxes_index` we know
+            first 3 boxes belong to first image.
+            Next 2 boxes belong to second image.
+            Last box belong to last image.
+
+            >>> [0, 0, 0, 1, 1, 2]
+
         Returns
         -------
         tuple(labels, bbox_targets)
             Return caculated labels , and bbox_targers
-        
-        Raises
-        ------
-        e
-            Description
         """
         labels = np.empty(
             (batch_size, inside_anchor_indexes.shape[0]), dtype=np.float32)
@@ -260,15 +297,7 @@ class AnchorTargerLayer(nn.Module):
             current_batch_overlaps = overlaps[:, batch_boxes_index == i]
             current_batch_boxes = batch_boxes[[batch_boxes_index == i]]
 
-            try:
-                argmax_overlaps = current_batch_overlaps.argmax(axis=1)  # (A)
-            except ValueError as e:
-                logger.debug(i)
-                logger.debug(current_batch_overlaps.shape)
-                logger.debug(batch_boxes_index)
-                logger.debug(batch_boxes)
-                raise e
-
+            argmax_overlaps = current_batch_overlaps.argmax(axis=1)  # (A)
             max_overlaps = current_batch_overlaps[np.arange(
                 inside_anchor_indexes.shape[0]), argmax_overlaps]
             gt_argmax_overlaps = current_batch_overlaps.argmax(axis=0)  # G

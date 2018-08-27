@@ -26,12 +26,12 @@ def nms_detections(pred_boxes, scores, nms_thresh, inds=None):
 class RPN(nn.Module):
 
     """Generate region proposals
-    
+
     Attributes
     ----------
     anchor_scales : list
         The scale of each anchor on particular point on feature maps.
-    anchor_target_layer : :func:`faster_rcnn.rpn_msr.anchor_target_layer.AnchorTargerLayer()`
+    anchor_target_layer : :class:`faster_rcnn.rpn_msr.anchor_target_layer.AnchorTargerLayer`
         Description
     bbox_conv : TYPE
         Description
@@ -48,7 +48,7 @@ class RPN(nn.Module):
     score_conv : TYPE
         Description
     """
-    
+
     _feat_stride = [16, ]
     anchor_scales = [4, 8, 16, 32]
 
@@ -88,7 +88,7 @@ class RPN(nn.Module):
                 im_data,
                 im_info, gt_boxes=None, gt_boxes_index=[]):
         """Forward 
-        
+
         Parameters
         ----------
         im_data : TYPE
@@ -99,7 +99,7 @@ class RPN(nn.Module):
             Description
         gt_boxes_index : list, optional
             Description
-        
+
         Returns
         -------
         tuple(features, rois)
@@ -158,7 +158,7 @@ class RPN(nn.Module):
 
 class FastRCNN(nn.Module):
     """docstring for FasterRCNN
-    
+
     Attributes
     ----------
     bbox_fc : TYPE
@@ -207,7 +207,8 @@ class FastRCNN(nn.Module):
         self.fc6 = nn.DataParallel(FC(512 * 7 * 7, 4096))
         self.fc7 = nn.DataParallel(FC(4096, 4096))
         self.score_fc = nn.DataParallel(FC(4096, self.n_classes, relu=False))
-        self.bbox_fc = nn.DataParallel(FC(4096, self.n_classes * 4, relu=False))
+        self.bbox_fc = nn.DataParallel(
+            FC(4096, self.n_classes * 4, relu=False))
 
         self.cross_entropy = None
         self.loss_box = None
@@ -217,7 +218,7 @@ class FastRCNN(nn.Module):
     @property
     def loss(self):
         """Summary
-        
+
         Returns
         -------
         TYPE
@@ -227,7 +228,7 @@ class FastRCNN(nn.Module):
 
     def forward(self, im_data, im_info, gt_boxes=None, gt_boxes_index=[]):
         """Summary
-        
+
         Parameters
         ----------
         im_data : TYPE
@@ -238,7 +239,7 @@ class FastRCNN(nn.Module):
             Description
         gt_boxes_index : list, optional
             Description
-        
+
         Returns
         -------
         TYPE
@@ -302,7 +303,8 @@ class FastRCNN(nn.Module):
             box_deltas[i, (inds[i] * 4): (inds[i] * 4 + 4)] for i in range(len(inds))
         ], dtype=np.float)
         boxes = rois.data.cpu().numpy()[keep, 1:5]
-        pred_boxes = bbox_transform_inv(boxes[np.newaxis, :], box_deltas[np.newaxis, :])
+        pred_boxes = bbox_transform_inv(
+            boxes[np.newaxis, :], box_deltas[np.newaxis, :])
         if clip:
             pred_boxes = clip_boxes(pred_boxes, im_shape)
         pred_boxes = pred_boxes[0]
@@ -325,12 +327,12 @@ class FastRCNN(nn.Module):
 
     def get_image_blob(self, im):
         """Converts an image into a network input.
-        
+
         Parameters
         ----------
         im : ndarray
             a color image in BGR order
-        
+
         Returns
         -------
         blob : ndarray
