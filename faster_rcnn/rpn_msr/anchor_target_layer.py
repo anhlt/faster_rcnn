@@ -55,28 +55,19 @@ class AnchorTargerLayer(nn.Module):
 
         Parameters
         ----------
-        rpn_cls_score : class:`torch.Tensor`
-            The probability of each anchor contains object center.
-        gt_boxes :class:`numpy.array`
+        rpn_cls_score: :class:`torch.Tensor`
+            The probability of each anchor contains object center
+        gt_boxes: :class:`numpy.array`
             List all ground truth boxes across all the images in batch
-        batch_boxes_index : :class:`numpy.array`
+        batch_boxes_index: :class:`numpy.array`
             Batch index where image belong to.
-        im_info : torch.Tensor([[im_height, im_width]])
+        im_info: :class:`torch.Tensor([[im_height, im_width]])`
             Original Image size
 
         Returns
         -------
-        TYPE
-            Description
-
-        Examples
-        --------
-        These are written in doctest format, and should illustrate how to
-        use the function.
-
-        >>> np.add(1, 2)
-        3
-
+        (:class:`torch.Tensor`, :class:`torch.Tensor`, :class:`torch.Tensor`, :class:`torch.Tensor`)
+            Return labels, bbox_targets, bbox_inside_weights, bbox_outside_weights
 
 
 
@@ -222,12 +213,12 @@ class AnchorTargerLayer(nn.Module):
 
         Parameters
         ----------
-        all_anchors : TYPE
-            Description
-        im_height : TYPE
-            Description
-        im_width : TYPE
-            Description
+        all_anchors : :class:`numpy.array`
+            All generated anchors
+        im_height : int
+            Origin image height.
+        im_width : int
+            Origin image width
 
         Returns
         -------
@@ -264,7 +255,7 @@ class AnchorTargerLayer(nn.Module):
         Notes
         -----
         |   Create empty label array.
-        |   - `label`: Shape [A, batch_size]
+        |   - `label`:
 
             >>> label.shape
             (A, batch_size)
@@ -326,7 +317,7 @@ class AnchorTargerLayer(nn.Module):
 
         Returns
         -------
-        tuple(labels, bbox_targets)
+        (numpy.array((A, batch_size)), numpy.array((batch_size, A, 4)))
             Return caculated labels , and bbox_targers
         """
         labels = np.empty(
