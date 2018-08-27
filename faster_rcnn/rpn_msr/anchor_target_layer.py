@@ -51,16 +51,16 @@ class AnchorTargerLayer(nn.Module):
         self._allow_border = 0
 
     def forward(self, rpn_cls_score, gt_boxes, batch_boxes_index, im_info):
-        """Summary
+        """ Generate all anchors, then filter anchors that lays outside original images. Calculate target base on overlaps values and bbox regression.
 
         Parameters
         ----------
-        rpn_cls_score : TYPE
-            Description
-        gt_boxes : TYPE
-            Description
-        batch_boxes_index : TYPE
-            Description
+        rpn_cls_score : class:`torch.Tensor`
+            The probability of each anchor contains object center.
+        gt_boxes :class:`numpy.array`
+            List all ground truth boxes across all the images in batch
+        batch_boxes_index : :class:`numpy.array`
+            Batch index where image belong to.
         im_info : torch.Tensor([[im_height, im_width]])
             Original Image size
 
@@ -258,7 +258,38 @@ class AnchorTargerLayer(nn.Module):
         return ret
 
     def calculate_target(self, inside_anchors, batch_size, inside_anchor_indexes, batch_boxes, batch_boxes_index):
-        """Summary
+        """Calculate bbox_targets and layer
+
+
+        Notes
+        -----
+        |   Create empty label array.
+        |   - `label`: Shape [A, batch_size]
+
+            >>> label.shape
+            (A, batch_size)
+
+        |   For each batch, there are `A` anchors and `G` batch boxes:
+        |
+        |   `current_batch_overlaps`: overlaps between anchors and boxes
+
+            >>> current_batch_overlaps.shape
+            (A, G)
+
+        |    `argmax_overlaps` : List index of boxes, that have largest overlap w.r.t each Anchor.
+
+            >>> argmax_overlaps.shape
+            (A, 1)
+
+        |    `max_overlaps` : List of largest overlap values between boxes w.r.t each Anchor.
+
+            >>> max_overlaps.shape
+            (A, 1)
+
+        |    Set current batch `label` values:
+
+            >>> labels[i, max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
+            >>> labels[i, max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 1
 
         Parameters
         ----------
@@ -270,7 +301,7 @@ class AnchorTargerLayer(nn.Module):
         inside_anchor_indexes : :class:`numpy.array`
             Indexes of inside anchors.
             Shape: [number_of_anchor * 1]
-        batch_boxes : list of numpy.array
+        batch_boxes : :class:`numpy.array`
             list all ground truth boxes across all the images in batch
             example:
 
@@ -284,12 +315,12 @@ class AnchorTargerLayer(nn.Module):
              [ 321.875       334.375       434.375       984.375     ]]
 
         batch_boxes_index : list[Int]
-            Index of image in batch,which boxes belong.
-            Example:
-            There 3 images in current batch, and 6 boxes inside that 3 images. Look at the `batch_boxes_index` we know
-            first 3 boxes belong to first image.
-            Next 2 boxes belong to second image.
-            Last box belong to last image.
+            |  Batch index where image belong to.
+            |  Example:
+            |  There 3 images in current batch, and 6 boxes inside that 3 images. Look at the `batch_boxes_index` we know:
+            |  First 3 boxes belong to first image.
+            |  Next 2 boxes belong to second image.
+            |  Last box belong to last image.
 
             >>> [0, 0, 0, 1, 1, 2]
 
@@ -327,7 +358,7 @@ class AnchorTargerLayer(nn.Module):
             # fg label: for each gt, anchor with highest overlap
             labels[i, gt_argmax_overlaps] = 1
             # fg label: above threshold IOU
-            labels[i, max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 1
+
 
             if cfg.TRAIN.RPN_CLOBBER_POSITIVES:
                 # assign bg labels last so that negative labels can clobber positives
