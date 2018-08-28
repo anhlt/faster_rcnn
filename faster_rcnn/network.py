@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 from torchvision.models.vgg import vgg16 as _vgg16
 import numpy as np
 from torchvision.models.inception import inception_v3
@@ -155,18 +154,10 @@ def inception():
     return InceptionFeatureExtraction(models)
 
 
-def np_to_variable(x, is_cuda=True, dtype=torch.FloatTensor):
-    v = Variable(torch.from_numpy(x).type(dtype))
+def np_to_tensor(x, is_cuda=True, requires_grad=False, dtype=torch.FloatTensor):
+    v = torch.from_numpy(x).type(dtype)
     if is_cuda:
         v = v.cuda()
-    return v
-
-
-def tensor_to_variable(x, is_cuda=True):
-    v = Variable(x)
-    if is_cuda:
-        v = v.cuda()
-
     return v
 
 

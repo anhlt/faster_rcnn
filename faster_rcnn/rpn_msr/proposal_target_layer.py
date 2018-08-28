@@ -5,7 +5,7 @@ import numpy.random as npr
 from ..fastrcnn.bbox_transform import bbox_transform
 from ..utils.cython_bbox import bbox_overlaps
 from ..config import cfg
-from ..network import np_to_variable
+from ..network import np_to_tensor
 import torch
 import logging
 
@@ -46,7 +46,7 @@ class ProposalTargetLayer(nn.Module):
         bbox_outside_weights = np.array(
             bbox_inside_weights > 0).astype(np.float32)
 
-        return rois, labels, bbox_targets, bbox_inside_weights, np_to_variable(bbox_outside_weights)
+        return rois, labels, bbox_targets, bbox_inside_weights, np_to_tensor(bbox_outside_weights)
 
     def _sample_rois(self, all_rois, gt_boxes, gt_boxes_index, fg_rois_per_image, rois_per_image, num_classes):
         '''
@@ -115,7 +115,7 @@ class ProposalTargetLayer(nn.Module):
             bbox_inside_weights[i] = current_bbox_inside_weights
             labels[i] = current_labels
 
-        return np_to_variable(labels, is_cuda=self.is_cuda, dtype=torch.LongTensor), np_to_variable(rois, is_cuda=self.is_cuda), np_to_variable(bbox_targets, is_cuda=self.is_cuda), np_to_variable(bbox_inside_weights, is_cuda=self.is_cuda)
+        return np_to_tensor(labels, is_cuda=self.is_cuda, dtype=torch.LongTensor), np_to_tensor(rois, is_cuda=self.is_cuda), np_to_tensor(bbox_targets, is_cuda=self.is_cuda), np_to_tensor(bbox_inside_weights, is_cuda=self.is_cuda)
 
     def _compute_targets(self, ex_rois, gt_rois, labels):
         """Compute bounding-box regression targets for an image."""

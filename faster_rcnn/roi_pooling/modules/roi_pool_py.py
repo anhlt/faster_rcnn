@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 import numpy as np
 
 
@@ -14,7 +13,7 @@ class RoIPool(nn.Module):
     def forward(self, features, rois):
         batch_size, num_channels, data_height, data_width = features.size()
         num_rois = rois.size()[0]
-        outputs = Variable(torch.zeros(num_rois, num_channels, self.pooled_height, self.pooled_width)).cuda()
+        outputs = torch.zeros(num_rois, num_channels, self.pooled_height, self.pooled_width).cuda()
 
         for roi_ind, roi in enumerate(rois):
             batch_ind = int(roi[0].data[0])
