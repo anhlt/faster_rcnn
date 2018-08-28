@@ -21,18 +21,42 @@ class ProposalLayer(nn.Module):
         self._num_anchors = self._anchors.shape[0]
 
     def forward(self, scores, bbox_deltas, im_info, cfg_key):
-        # Algorithm:
-        #
-        # for each (H, W) location i
-        #   generate A anchor boxes centered on cell i
-        #   apply predicted bbox deltas at cell i to each of the A anchors
-        # clip predicted boxes to image
-        # remove predicted boxes with either height or width < threshold
-        # sort all (proposal, score) pairs by score from highest to lowest
-        # take top pre_nms_topN proposals before NMS
-        # apply NMS with threshold 0.7 to remaining proposals
-        # take after_nms_topN proposals after NMS
-        # return the top proposals (-> RoIs top, scores top)
+        """Summary
+
+        Notes   
+        -----
+        |  for each (H, W) location i
+        |    generate A anchor boxes centered on cell i
+        |    apply predicted bbox deltas at cell i to each of the A anchors
+        |  clip predicted boxes to image
+        |  remove predicted boxes with either height or width < threshold
+        |  sort all (proposal, score) pairs by score from highest to lowest
+        |  take top pre_nms_topN proposals before NMS
+        |  apply NMS with threshold 0.7 to remaining proposals
+        |  take after_nms_topN proposals after NMS
+        |  return the top proposals (-> RoIs top, scores top)
+
+        Parameters
+        ----------
+        scores : TYPE
+            Description
+        bbox_deltas : TYPE
+            Description
+        im_info : TYPE
+            Description
+        cfg_key : TYPE
+            Description
+
+
+        Returns
+        -------
+        TYPE
+            Description
+
+
+
+        """
+
         scores = scores.cpu().detach().numpy()
         bbox_deltas = bbox_deltas.cpu().detach().numpy()
         scores = scores[:, self._num_anchors:, :, :]

@@ -24,26 +24,26 @@ def nms_detections(pred_boxes, scores, nms_thresh, inds=None):
 
 class RPN(nn.Module):
 
-    """Generate region proposals
+    """Generate region proposals, shares computation with the object detection network.
 
     Attributes
     ----------
     anchor_scales : list
         The scale of each anchor on particular point on feature maps.
     anchor_target_layer : :class:`faster_rcnn.rpn_msr.anchor_target_layer.AnchorTargerLayer`
-        Description
-    bbox_conv : TYPE
-        Description
-    conv1 : TYPE
-        Description
-    cross_entropy : TYPE
-        Description
-    features : TYPE
-        Description
-    loss_box : TYPE
-        Description
-    proposal_layer : TYPE
-        Description
+        Calculate network target base on anchors and ground truth boxes.
+    bbox_conv : :class:`torch.nn.module`
+        Proposals coordinate refine predictor
+    conv1 : :class:`torch.nn.module`
+        Probability that anchors contains object predictor
+    cross_entropy : int
+        Cross entropy loss.
+    features : :class:`torch.nn.module`
+        Backbone network, that share computation with object detection network
+    loss_box : int
+        Box coordinate refine loss.
+    proposal_layer : :class:`faster_rcnn.rpn_msr.proposal_layer.ProposalLayer`
+        Create proposals base on generated anchors and bbox refine values.
     score_conv : TYPE
         Description
     """
@@ -73,6 +73,18 @@ class RPN(nn.Module):
         return self.cross_entropy + 10 * self.loss_box
 
     def _computer_forward(self, im_data):
+        """Calculate forward
+
+        Parameters
+        ----------
+        im_data : :class:`torch.tensor`
+            image as tensor
+
+        Returns
+        -------
+        (:class:`torch.tensor`, :class:`torch.tensor`, :class:`torch.tensor`)
+            Return feature map, proposal boxes refine values w.r.t to each anchors, probability that anchors is foreground
+        """
         features = self.features(im_data)  # (N, 512, W, H)
         rpn_conv1 = self.conv1(features)  # (N, 512, W, H)
 
