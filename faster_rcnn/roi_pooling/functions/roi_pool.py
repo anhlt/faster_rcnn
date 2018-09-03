@@ -12,8 +12,8 @@ class RoIPoolFunction(Function):
         pooled_height_int = int(pooled_height.item())
         spatial_scale_float = float(spatial_scale.item())
 
-        batch_size, num_channels, data_height, data_width = features.size()
-        num_rois = rois.size()[0]
+        batch_size, num_channels, data_height, data_width = features.shape
+        num_rois = rois.shape[0]
         output = torch.zeros(num_rois, num_channels,
                              pooled_height_int, pooled_width_int)
         argmax = torch.IntTensor(
@@ -40,7 +40,7 @@ class RoIPoolFunction(Function):
         pooled_width = int(pooled_width.item())
         pooled_height = int(pooled_height.item())
         spatial_scale = float(spatial_scale.item())
-        feature_size = features.size()
+        feature_size = features.shape
 
         assert(feature_size is not None and grad_output.is_cuda)
 

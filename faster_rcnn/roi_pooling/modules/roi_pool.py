@@ -7,9 +7,9 @@ class RoIPool(Module):
     def __init__(self, pooled_height, pooled_width, spatial_scale):
         super(RoIPool, self).__init__()
 
-        self.pooled_width = Tensor([int(pooled_width)])
-        self.pooled_height = Tensor([int(pooled_height)])
-        self.spatial_scale = Tensor([float(spatial_scale)])
+        self.pooled_width = pooled_width
+        self.pooled_height = pooled_height
+        self.spatial_scale = spatial_scale
 
     def forward(self, features, rois):
-        return RoIPoolFunction.apply(features, rois, self.pooled_height, self.pooled_width, self.spatial_scale)
+        return RoIPoolFunction.apply(features, rois, Tensor([int(self.pooled_height)]), Tensor([int(self.pooled_width)]), Tensor([float(self.spatial_scale)]))

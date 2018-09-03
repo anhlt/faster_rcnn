@@ -268,7 +268,7 @@ class FastRCNN(nn.Module):
 
         # Roi pool
         pooled_features = self.roi_pool(features, rois)
-        x = pooled_features.view(pooled_features.size()[0], -1)
+        x = pooled_features.view(pooled_features.shape[0], -1)
         x = self.fc6(x)
         x = F.dropout(x, training=self.training)
         x = self.fc7(x)
@@ -288,7 +288,7 @@ class FastRCNN(nn.Module):
         fg_cnt = torch.sum(label.data.ne(0))
         bg_cnt = label.data.numel() - fg_cnt
 
-        ce_weights = torch.ones(cls_score.size()[1])
+        ce_weights = torch.ones(cls_score.shape[1])
         ce_weights[0] = float(fg_cnt.item()) / bg_cnt.item()
         ce_weights = ce_weights.cuda()
         cross_entropy = F.cross_entropy(cls_score, label, weight=ce_weights)
