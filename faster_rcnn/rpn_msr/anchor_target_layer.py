@@ -71,7 +71,6 @@ class AnchorTargerLayer(nn.Module):
 
 
         """
-        rpn_cls_score = rpn_cls_score.cpu().detach().numpy()
         # gt_boxes = gt_boxes.numpy()
         # im_info = im_info.numpy()
         # batch_boxes_index = batch_boxes_index.numpy()

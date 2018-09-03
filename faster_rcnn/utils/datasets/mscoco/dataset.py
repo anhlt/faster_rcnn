@@ -110,6 +110,7 @@ class CocoData(CocoDetection):
             gt_boxes, gt_classes, gt_seg_areas, gt_overlaps = zip(
                 *[box for box in bboxs(annotation)])
         except ValueError as e:
+            logger.(bboxs(annotation))
             logger.info(str(e))
             return None
 
