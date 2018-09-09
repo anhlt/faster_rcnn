@@ -97,7 +97,7 @@ class RPN(nn.Module):
     def forward(self,
                 im_data,
                 im_info, gt_boxes=None, gt_boxes_index=[]):
-        """Forward 
+        """Forward
 
         Parameters
         ----------
@@ -262,9 +262,6 @@ class FastRCNN(nn.Module):
             roi_data = self.proposal_target_layer(
                 rois, gt_boxes, gt_boxes_index)
             rois = roi_data[0]
-        else:
-            all_rois = rois.cpu().detach().numpy()[0]
-            rois = np_to_tensor(all_rois)
 
         # Roi pool
         pooled_features = self.roi_pool(features, rois)

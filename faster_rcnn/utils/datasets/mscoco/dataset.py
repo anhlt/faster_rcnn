@@ -4,6 +4,7 @@ import numpy as np
 import logging
 from torchvision import transforms
 from PIL import Image
+import torch
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -13,14 +14,15 @@ class CocoData(CocoDetection):
     def __init__(self,
                  root,
                  annFile,
-                 pre_proposal_folder=None,
+                 data_name='train2014',
                  transform=None,
-                 target_transform=None):
+                 target_transform=None,
+                 sorted_indexes=[]):
         super(CocoData, self).__init__(
             root, annFile, transform, target_transform)
 
-        self.pre_proposal_folder = pre_proposal_folder
-        self._data_name = 'train2014'
+        self._data_name = data_name
+        self.sorted_indexes = sorted_indexes
         self.config = {'top_k': 2000,
                        'use_salt': True,
                        'cleanup': True,
@@ -62,7 +64,10 @@ class CocoData(CocoDetection):
             tuple: (image, target) where target gt_boxes: (G, 5) vstack of [x1, y1, x2, y2, class]
         """
         coco = self.coco
-        img_id = self.ids[index]
+        if len(self.sorted_indexes):
+            img_id = self.ids[self.sorted_indexes[index]]
+        else:
+            img_id = self.ids[index]
         ann_id = coco.getAnnIds(imgIds=img_id, iscrowd=None)
         annotation = coco.loadAnns(ann_id)
         image_info = coco.loadImgs(img_id)[0]
@@ -71,7 +76,6 @@ class CocoData(CocoDetection):
         height = image_info['height']
         # need to fixed
 
-        # im_blob, im_info = _get_image_blob(imread(im_file_path))
         img = Image.open(im_file_path).convert('RGB')
         origin_size = img.size
 
@@ -83,8 +87,9 @@ class CocoData(CocoDetection):
 
         blobs = {}
         blobs['tensor'] = img
-        blobs['im_name'] = os.path.basename(im_file_path)
-        blobs['image_info'] = image_info
+        # print img.shape
+        # blobs['im_name'] = os.path.basename(im_file_path)
+        # blobs['image_info'] = image_info
 
         # The standard in computer vision is to specify the top left corner and the bottom right corner.
         # The coordinates are parsed by <your_dataset.py> (for example coco.py)
@@ -105,9 +110,9 @@ class CocoData(CocoDetection):
                 else:
                     overlap[class_index] = 1.0
                 if target['area'] > 0 and x2 >= x1 and y2 >= y1:
-                    yield [x1, y1, x2, y2], class_index, target['area'], overlap
+                    yield [x1, y1, x2, y2], class_index
         try:
-            gt_boxes, gt_classes, gt_seg_areas, gt_overlaps = zip(
+            gt_boxes, gt_classes = zip(
                 *[box for box in bboxs(annotation)])
         except ValueError as e:
             logger.info(str(e))
@@ -115,14 +120,8 @@ class CocoData(CocoDetection):
 
         gt_boxes = np.array(gt_boxes, dtype=np.uint16)
         gt_classes = np.array(gt_classes, dtype=np.int32)
-        gt_overlaps = np.array(gt_overlaps, dtype=np.float32)
-        gt_seg_areas = np.array(gt_seg_areas, dtype=np.float32)
 
-        # load pre-computed proposal boxes
-
-        blobs['gt_classes'] = gt_classes
-        blobs['gt_overlaps'] = gt_overlaps
-        blobs['boxes'] = gt_boxes * im_info[0][2]
-        blobs['flipped'] = False
-        blobs['im_info'] = np.array(im_info, dtype=np.float32)
+        blobs['gt_classes'] = torch.from_numpy(gt_classes)
+        blobs['boxes'] = torch.from_numpy(gt_boxes * im_info[0][2])
+        blobs['im_info'] = torch.from_numpy(np.array(im_info, dtype=np.float32))
         return blobs

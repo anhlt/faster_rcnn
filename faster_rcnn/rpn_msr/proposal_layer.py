@@ -23,7 +23,7 @@ class ProposalLayer(nn.Module):
     def forward(self, scores, bbox_deltas, im_info, cfg_key):
         """Summary
 
-        Notes   
+        Notes
         -----
         |  for each (H, W) location i
         |    generate A anchor boxes centered on cell i
