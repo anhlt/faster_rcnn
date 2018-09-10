@@ -115,7 +115,7 @@ class CocoData(CocoDetection):
             gt_boxes, gt_classes = zip(
                 *[box for box in bboxs(annotation)])
         except ValueError as e:
-            logger.info(str(e))
+            logger.debug(str(e))
             return None
 
         gt_boxes = np.array(gt_boxes, dtype=np.uint16)
