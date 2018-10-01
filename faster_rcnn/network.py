@@ -157,7 +157,7 @@ def inception():
 def np_to_tensor(x, is_cuda=True, requires_grad=False, dtype=torch.FloatTensor):
     v = torch.from_numpy(x).type(dtype)
     if is_cuda:
-        v = v.cuda()
+        v = v.to(torch.device("cuda"))
     return v
 
 

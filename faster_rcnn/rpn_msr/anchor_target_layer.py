@@ -71,6 +71,7 @@ class AnchorTargerLayer(nn.Module):
 
 
         """
+        
         # gt_boxes = gt_boxes.numpy()
         # im_info = im_info.numpy()
         # batch_boxes_index = batch_boxes_index.numpy()

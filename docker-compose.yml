@@ -10,6 +10,7 @@ services:
             - "8889:8889"
         volumes:
             - ".:/data"
+        shm_size: '10gb'
         user: anh
         working_dir: /data
         tty: true

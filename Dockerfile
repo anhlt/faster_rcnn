@@ -1,8 +1,7 @@
-FROM nvidia/cuda:8.0-devel-ubuntu16.04 
+FROM nvidia/cuda:9.0-devel-ubuntu16.04 
 
 RUN echo "deb http://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1604/x86_64 /" > /etc/apt/sources.list.d/nvidia-ml.list
 
-ENV CUDNN_VERSION 6.0.20 
 RUN apt-get update && apt-get install -y --no-install-recommends \
          build-essential \
          cmake \
@@ -10,8 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
          curl \
          ca-certificates \
          libjpeg-dev \
-         libpng-dev \
-         libcudnn6=$CUDNN_VERSION-1+cuda8.0 libcudnn6-dev=$CUDNN_VERSION-1+cuda8.0
+         libpng-dev
+
 RUN apt-get -y update && apt-get install -y g++ gcc gfortran build-essential git libopenblas-dev
 RUN  rm -rf /var/lib/apt/lists/*
 
@@ -23,13 +22,13 @@ RUN rm ~/miniconda.sh
 
 RUN /opt/conda/bin/conda install conda-build && \
     /opt/conda/bin/conda create -y --name pytorch python=2.7.12 numpy pyyaml scipy ipython mkl&& \
-    /opt/conda/bin/conda clean -ya 
+    /opt/conda/bin/conda clean -ya
 
 ENV PATH /opt/conda/envs/pytorch/bin:$PATH
 
-RUN conda install -y --name pytorch pytorch==0.4.0 torchvision cuda80 -c pytorch
+RUN conda install -y --name pytorch pytorch torchvision -c pytorch
 RUN conda install -y --name pytorch seaborn opencv cython
-RUN conda install -y --name pytorch -c anaconda protobuf 
+RUN conda install -y --name pytorch -c anaconda protobuf
 
 # This must be done before pip so that requirements.txt is available
 WORKDIR /opt/pytorch
