@@ -109,6 +109,8 @@ class RPN(nn.Module):
         tuple(features, rois)
             Return the features map and list of rois.
         """
+
+        im_data = im_data.to(torch.device('cuda'))
         features, rpn_bbox_pred, rpn_cls_score = self._computer_forward(
             im_data)
         batch_size = features.shape[0]
@@ -247,6 +249,7 @@ class FastRCNN(nn.Module):
             rois = target[0]
         else:
             target = None
+            rois = rois.reshape(-1, 5).type(torch.FloatTensor).to(torch.device("cuda"))
 
         # Roi pool
         pooled_features = self.roi_pool(features, rois)
