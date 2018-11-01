@@ -151,10 +151,10 @@ class VOCDetection(data.Dataset):
                 bb = obj.find('bndbox')
                 bndbox = [float(bb.find('xmin').text), float(bb.find('ymin').text),
                           float(bb.find('xmax').text), float(bb.find('ymax').text)]
-                assert 0. <= bndbox[0] < bndbox[2] <= im_info[0] / im_info[2]
-                assert 0. <= bndbox[1] < bndbox[3] <= im_info[1] / im_info[2]
-                class_index = self.label_map_dict[name]
-                yield bndbox, class_index
+                if 0. <= bndbox[0] < bndbox[2] <= im_info[1] / im_info[2] and 0. <= bndbox[1] < bndbox[3] <= im_info[0] / im_info[2] :
+
+                    class_index = self.label_map_dict[name]
+                    yield bndbox, class_index
 
         try:
             gt_boxes, gt_classes = zip(*[box for box in bboxs(target, im_info[0])])
