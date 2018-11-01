@@ -249,7 +249,7 @@ __C.USE_GPU_NMS = True
 __C.GPU_ID = 0
 
 __C.FONT_PATH = osp.abspath(
-    osp.join(__C.ROOT_DIR, 'font', 'FiraMono-Medium.otf'))
+    osp.join(__C.ROOT_DIR, 'font', 'Arial-Unicode-Regular.ttf'))
 
 
 def get_output_dir(imdb, weights_filename):

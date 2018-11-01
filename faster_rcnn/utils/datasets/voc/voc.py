@@ -129,7 +129,7 @@ class VOCDetection(data.Dataset):
             target = ET.parse(self._annopath % img_id).getroot()
             img = Image.open(self._imgpath % img_id).convert('RGB')
         except IOError as e:
-            # logger.debug(e)
+            logger.debug(e)
             return None
 
         origin_size = img.size
@@ -145,20 +145,26 @@ class VOCDetection(data.Dataset):
         blobs['im_info'] = im_info
         blobs['im_name'] = os.path.basename(self._imgpath % img_id)
 
-        def bboxs(target):
+        def bboxs(target, im_info):
             for obj in target.iter('object'):
                 name = obj.find('name').text
                 bb = obj.find('bndbox')
-                bndbox = [bb.find('xmin').text, bb.find('ymin').text,
-                          bb.find('xmax').text, bb.find('ymax').text]
+                bndbox = [float(bb.find('xmin').text), float(bb.find('ymin').text),
+                          float(bb.find('xmax').text), float(bb.find('ymax').text)]
+                assert 0. <= bndbox[0] < bndbox[2] <= im_info[0] / im_info[2]
+                assert 0. <= bndbox[1] < bndbox[3] <= im_info[1] / im_info[2]
                 class_index = self.label_map_dict[name]
                 yield bndbox, class_index
 
         try:
-            gt_boxes, gt_classes = zip(*[box for box in bboxs(target)])
+            gt_boxes, gt_classes = zip(*[box for box in bboxs(target, im_info[0])])
             gt_boxes = np.array(gt_boxes, dtype=np.uint16)
             gt_classes = np.array(gt_classes, dtype=np.int32)
         except ValueError as e:
+            logger.debug(e)
+            return None
+        except AssertionError as e:
+            logger.debug(e)
             return None
 
         if self.target_transform is not None:
