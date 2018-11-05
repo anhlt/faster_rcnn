@@ -284,7 +284,6 @@ class FastRCNN(nn.Module):
         # find class
         scores, inds = cls_prob.data.max(1)
         scores, inds = scores.cpu().numpy(), inds.cpu().numpy()
-
         keep = np.where((inds > 0) & (scores >= min_score))
         scores, inds = scores[keep], inds[keep]
 
@@ -295,6 +294,8 @@ class FastRCNN(nn.Module):
             box_deltas[i, (inds[i] * 4): (inds[i] * 4 + 4)] for i in range(len(inds))
         ], dtype=np.float)
         boxes = rois.data.cpu().numpy()[keep, 1:5]
+        if len(boxes) == 0:
+            return np.array([]), np.array([]),np.array([]),np.array([])
         pred_boxes = bbox_transform_inv(
             boxes[np.newaxis, :], box_deltas[np.newaxis, :])
         if clip:

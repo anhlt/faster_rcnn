@@ -5,6 +5,8 @@ import torch
 def convert_data(blobs):
     blobs = [i for i in blobs if i is not None]
     current_batch_size = len(blobs)
+    if not current_batch_size:
+       return None 
     max_height = np.max([blob['tensor'].shape[2] for blob in blobs])
     max_width = np.max([blob['tensor'].shape[3] for blob in blobs])
     batch_tensor = torch.Tensor(
