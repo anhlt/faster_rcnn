@@ -75,12 +75,11 @@ class VOCSegmentation(data.Dataset):
 
 
 class VOCDetection(data.Dataset):
-    def __init__(self, root, image_set, transform=None, target_transform=None):
+    def __init__(self, root, image_set, dataset_name = 'VOC2007', transform=None, target_transform=None):
         self.root = root
         self.image_set = image_set
         self.target_transform = target_transform
 
-        dataset_name = 'VOC2007'
         self._annopath = os.path.join(self.root, dataset_name, 'Annotations', '%s.xml')
         self._imgpath = os.path.join(self.root, dataset_name, 'JPEGImages', '%s.jpg')
         self._imgsetpath = os.path.join(self.root, dataset_name, 'ImageSets', 'Main', '%s.txt')
@@ -152,7 +151,7 @@ class VOCDetection(data.Dataset):
                 bndbox = [float(bb.find('xmin').text), float(bb.find('ymin').text),
                           float(bb.find('xmax').text), float(bb.find('ymax').text)]
                 if 0. <= bndbox[0] < bndbox[2] <= im_info[1] / im_info[2] and 0. <= bndbox[1] < bndbox[3] <= im_info[0] / im_info[2] :
-
+                    print(name, self.label_map_dict[name])
                     class_index = self.label_map_dict[name]
                     yield bndbox, class_index
 
