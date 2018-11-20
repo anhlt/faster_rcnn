@@ -32,7 +32,6 @@ cfg = __C
 #
 
 # region proposal network (RPN) or not
-__C.IS_RPN = True
 __C.ANCHOR_SCALES = [8, 16, 32]
 __C.NCLASSES = 21
 
@@ -183,19 +182,6 @@ __C.TEST.MAX_SIZE = 1000
 # Overlap threshold used for non-maximum suppression (suppress boxes with
 # IoU >= this threshold)
 __C.TEST.NMS = 0.3
-
-# Experimental: treat the (K+1) units in the cls_score layer as linear
-# predictors (trained, eg, with one-vs-rest SVMs).
-__C.TEST.SVM = False
-
-# Test using bounding-box regressors
-__C.TEST.BBOX_REG = True
-
-# Propose boxes
-__C.TEST.HAS_RPN = True
-
-# Test using these proposals
-__C.TEST.PROPOSAL_METHOD = 'mcg'
 
 # NMS threshold used on RPN proposals
 __C.TEST.RPN_NMS_THRESH = 0.8
