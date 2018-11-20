@@ -19,7 +19,7 @@ else:
     import xml.etree.ElementTree as ET
 logging.basicConfig()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 class TransformVOCDetectionAnnotation(object):

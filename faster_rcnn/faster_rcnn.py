@@ -317,6 +317,16 @@ class FastRCNN(nn.Module):
             self.interpret(
                 cls_prob, bbox_pred, rois, im_info, im_info[0][:2], min_score=thr, nms=True)
         return pred_boxes, scores, classes, rois, im_data
+    
+    def detect_blob(self, im_data, im_info, thr=0.5):
+        self.eval()
+        cls_prob, bbox_pred, rois, _, _, _, _, _ = self(im_data, im_info[:, :2])
+        cls_prob = cls_prob.squeeze()
+        bbox_pred = bbox_pred.squeeze()
+        pred_boxes, scores, classes, rois = \
+            self.interpret(
+                cls_prob, bbox_pred, rois, im_info, im_info[0][:2], min_score=thr, nms=True)
+        return pred_boxes, scores, classes, rois, im_data
 
     def get_image_blob(self, im):
         """Converts an image into a network input.
