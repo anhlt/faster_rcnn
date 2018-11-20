@@ -45,8 +45,6 @@ class VOCMerge(data.Dataset):
         for sub_class in self.classes[1:]:
             self.sub_class_dict[sub_class] = VOCDetection(os.path.join(root, dataset_name),sub_class + '_' + image_set, dataset_name=sub_class+ "_output")
             self.sub_class_dict[sub_class].label_map_dict = self.label_map_dict
-            print(len(self.sub_class_dict[sub_class]))
-            print(self.sub_class_dict[sub_class].classes)
             self.sum_item.append(self.sum_item[-1] + len(self.sub_class_dict[sub_class]))
 
     def __getitem__(self, index):
@@ -61,7 +59,6 @@ class VOCMerge(data.Dataset):
                 return find(a, value, start, mid)
 
         category, offset = find(self.sum_item, index+1, 0, len(self.sum_item) - 1)
-        print category, offset
 
         return self.sub_class_dict[self.classes[category]][offset]
 
