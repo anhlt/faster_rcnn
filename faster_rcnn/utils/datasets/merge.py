@@ -15,12 +15,14 @@ except Exception as e:
 from google.protobuf import text_format
 
 class VOCMerge(data.Dataset):
-    def __init__(self, root, image_set, dataset_name = 'merge_voc', transform=None, target_transform=None):
+    def __init__(self, root, image_set, dataset_name = 'merge_voc', general_transform=None, transform=None, target_transform=None, oversample=False, oversample_len=200):
         self.root = root
         self.image_set = image_set
+        self.oversample = oversample
+        self.oversample_len = oversample_len
         self.transform = transform
         self.target_transform = target_transform
-
+        self.general_transform = general_transform
         self._label_map_path = os.path.join(self.root, dataset_name, 'pascal_label_map.pbtxt')
         self.sub_class_dict = {}
 
@@ -43,7 +45,13 @@ class VOCMerge(data.Dataset):
 
 
         for sub_class in self.classes[1:]:
-            self.sub_class_dict[sub_class] = VOCDetection(os.path.join(root, dataset_name),sub_class + '_' + image_set, dataset_name=sub_class+ "_output")
+            self.sub_class_dict[sub_class] = VOCDetection(
+                os.path.join(root, dataset_name),sub_class + '_' + image_set,
+                general_transform=self.general_transform,
+                dataset_name=sub_class+ "_output",
+                oversample=self.oversample,
+                oversample_len=self.oversample_len)
+
             self.sub_class_dict[sub_class].label_map_dict = self.label_map_dict
             self.sum_item.append(self.sum_item[-1] + len(self.sub_class_dict[sub_class]))
 

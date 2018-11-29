@@ -31,35 +31,9 @@ cfg = __C
 # Training options
 #
 
-# region proposal network (RPN) or not
-__C.ANCHOR_SCALES = [8, 16, 32]
-__C.NCLASSES = 21
-
-# multiscale training and testing
-__C.IS_MULTISCALE = False
-__C.IS_EXTRAPOLATING = True
-
-__C.REGION_PROPOSAL = 'RPN'
-
-__C.NET_NAME = 'VGGnet'
-__C.SUBCLS_NAME = 'voxel_exemplars'
-
 __C.TRAIN = edict()
 # Adam, Momentum, RMS
-__C.TRAIN.SOLVER = 'Momentum'
-# learning rate
-__C.TRAIN.WEIGHT_DECAY = 0.0005
-__C.TRAIN.LEARNING_RATE = 0.001
-__C.TRAIN.MOMENTUM = 0.9
-__C.TRAIN.GAMMA = 0.1
-__C.TRAIN.STEPSIZE = 50000
-__C.TRAIN.DISPLAY = 10
-__C.TRAIN.LOG_IMAGE_ITERS = 100
-__C.TRAIN.OHEM = False
-
 # Scales to compute real features
-__C.TRAIN.SCALES_BASE = (0.25, 0.5, 1.0, 2.0, 3.0)
-# __C.TRAIN.SCALES_BASE = (1.0,)
 
 # parameters for ROI generating
 __C.TRAIN.SPATIAL_SCALE = 0.0625
@@ -80,7 +54,7 @@ __C.TRAIN.MAX_SIZE = 1000
 __C.TRAIN.IMS_PER_BATCH = 2
 
 # Minibatch size (number of regions of interest [ROIs])
-__C.TRAIN.BATCH_SIZE = 300
+__C.TRAIN.BATCH_SIZE = 200
 
 # Fraction of minibatch that is labeled foreground (i.e. class > 0)
 __C.TRAIN.FG_FRACTION = 0.25
@@ -91,7 +65,7 @@ __C.TRAIN.FG_THRESH = 0.5
 # Overlap threshold for a ROI to be considered background (class = 0 if
 # overlap in [LO, HI))
 __C.TRAIN.BG_THRESH_HI = 0.5
-__C.TRAIN.BG_THRESH_LO = 0.0
+__C.TRAIN.BG_THRESH_LO = 0.1
 
 # Use horizontally-flipped images during training?
 __C.TRAIN.USE_FLIPPED = True
@@ -103,17 +77,6 @@ __C.TRAIN.BBOX_REG = True
 # be used as a bounding-box regression training example
 __C.TRAIN.BBOX_THRESH = 0.5
 
-# Iterations between snapshots
-__C.TRAIN.SNAPSHOT_ITERS = 5000
-
-# solver.prototxt specifies the snapshot path prefix, this adds an optional
-# infix to yield the path: <prefix>[_<infix>]_iters_XYZ.caffemodel
-__C.TRAIN.SNAPSHOT_PREFIX = 'VGGnet_fast_rcnn'
-__C.TRAIN.SNAPSHOT_INFIX = ''
-
-# Use a prefetch thread in roi_data_layer.layer
-# So far I haven't found this useful; likely more engineering work is required
-__C.TRAIN.USE_PREFETCH = False
 
 # Normalize the targets (subtract empirical mean, divide by empirical stddev)
 __C.TRAIN.BBOX_NORMALIZE_TARGETS = True
@@ -129,7 +92,6 @@ __C.TRAIN.BBOX_NORMALIZE_STDS = (0.1, 0.1, 0.2, 0.2)
 # __C.TRAIN.BBOX_NORMALIZE_STDS = (1, 1, 1, 1)
 
 # Train using these proposals
-__C.TRAIN.PROPOSAL_METHOD = 'mcg'
 
 # Make minibatches from images that have similar aspect ratios (i.e. both
 # tall and thin or both short and wide) in order to avoid wasting computation
@@ -138,8 +100,7 @@ __C.TRAIN.ASPECT_GROUPING = True
 # preclude rois intersected with dontcare areas above the value
 __C.TRAIN.DONTCARE_AREA_INTERSECTION_HI = 0.5
 __C.TRAIN.PRECLUDE_HARD_SAMPLES = True
-# Use RPN to detect objects
-__C.TRAIN.HAS_RPN = True
+
 # IOU >= thresh: positive example
 __C.TRAIN.RPN_POSITIVE_OVERLAP = 0.7
 # IOU < thresh: negative example

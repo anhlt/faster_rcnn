@@ -14,6 +14,7 @@ def convert_data(blobs):
     total_boxes = 0
     batch_boxes = np.empty((0, 5))
     batch_boxes_index = np.empty((0,), dtype=np.int)
+    img_name = []
     im_info = np.array([[batch_tensor.shape[2], batch_tensor.shape[3]]])
     for i, blob in enumerate(blobs):
         shape = blob['tensor'].shape
@@ -25,5 +26,6 @@ def convert_data(blobs):
         a = np.zeros((total_boxes, ), dtype=np.int)
         a.fill(i)
         batch_boxes_index = np.concatenate((batch_boxes_index, a), axis=0)
+        img_name.append(blob['im_name'])
 
-    return batch_tensor, im_info, batch_boxes, batch_boxes_index
+    return batch_tensor, im_info, batch_boxes, batch_boxes_index, img_name
