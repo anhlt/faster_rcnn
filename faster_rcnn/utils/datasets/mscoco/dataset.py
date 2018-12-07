@@ -124,4 +124,5 @@ class CocoData(CocoDetection):
         blobs['gt_classes'] = torch.from_numpy(gt_classes)
         blobs['boxes'] = torch.from_numpy(gt_boxes * im_info[0][2])
         blobs['im_info'] = torch.from_numpy(np.array(im_info, dtype=np.float32))
+        blobs['im_name'] = image_info['file_name']
         return blobs
