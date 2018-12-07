@@ -146,7 +146,6 @@ class VOCDetection(data.Dataset):
 
         origin_size = (int(target.find('size').find('width').text),
                        int(target.find('size').find('height').text))
-
         def bboxs(target, origin_size):
             for obj in target.iter('object'):
                 name = obj.find('name').text
@@ -241,11 +240,13 @@ class VOCDetection(data.Dataset):
                 need_delete_files.append(os.path.join(annotation_dir, file))
                 need_delete_files.append(
                     os.path.join(img_dir, "%s.jpg" % file_name))
-            elif not os.path.isfile(os.path.join(img_dir, "%s.jpg" % file_name)):
-                need_delete_files.append(os.path.join(annotation_dir, file))
             else:
                 retain_files.append(file_name)
 
+            if not os.path.isfile(os.path.join(img_dir, "%s.jpg" % file_name)):
+                print('Image not existed')
+                need_delete_files.append(os.path.join(annotation_dir, file))    
+                
         print "Need to delete: %d" % len(need_delete_files)
         print "Retain: %d" % len(retain_files)
         print "dataset_dir: %s" % dataset_dir

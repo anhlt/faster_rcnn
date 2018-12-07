@@ -40,7 +40,6 @@ class VOCMerge(data.Dataset):
                 os.path.join(root, dataset_name), sub_class + '_' + image_set,
                 dataset_name=sub_class + "_output",
                 *args, **kwargs)
-
             self.sub_class_dict[sub_class].label_map_dict = self.label_map_dict
             self.sum_item.append(
                 self.sum_item[-1] + len(self.sub_class_dict[sub_class]))
