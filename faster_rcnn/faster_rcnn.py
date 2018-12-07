@@ -53,7 +53,7 @@ class RPN(nn.Module):
     """
 
     _feat_stride = [16, ]
-    anchor_scales = [2, 4, 8, 16, 32]
+    anchor_scales = [4, 8, 16, 32]
 
     def __init__(self):
         super(RPN, self).__init__()
