@@ -10,7 +10,7 @@ import torch
 import logging
 
 logger = logging.getLogger("root")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 class ProposalTargetLayer(nn.Module):
@@ -63,12 +63,12 @@ class ProposalTargetLayer(nn.Module):
 
         batch_size = all_rois.shape[0]
 
-        rois = np.zeros((batch_size, self.rois_per_image, 5))
+        rois = np.zeros((batch_size, rois_per_image, 5))
         bbox_targets = np.zeros(
-            (batch_size, self.rois_per_image, self.num_classes * 4))
+            (batch_size, rois_per_image, self.num_classes * 4))
         bbox_inside_weights = np.zeros(
-            (batch_size, self.rois_per_image, self.num_classes * 4))
-        labels = np.zeros((batch_size, self.rois_per_image))
+            (batch_size, rois_per_image, self.num_classes * 4))
+        labels = np.zeros((batch_size, rois_per_image))
 
         for i in range(batch_size):
             current_rois = all_rois[i]
@@ -80,7 +80,7 @@ class ProposalTargetLayer(nn.Module):
             max_overlaps = overlaps.max(axis=1)  # R
             current_labels = current_gt_boxes[gt_assignment, 4]
             fg_inds = np.where(max_overlaps >= cfg.TRAIN.FG_THRESH)[0]
-            fg_rois_per_this_image = min(self.fg_rois_per_image, fg_inds.size)
+            fg_rois_per_this_image = min(fg_rois_per_image, fg_inds.size)
             if fg_inds.size > 0:
                 fg_inds = npr.choice(
                     fg_inds, size=fg_rois_per_this_image, replace=False)
@@ -94,7 +94,16 @@ class ProposalTargetLayer(nn.Module):
             if bg_inds.size > 0:
                 bg_inds = npr.choice(
                     bg_inds, size=bg_rois_per_this_image, replace=False)
+
+            extra_bg_inds = np.where(max_overlaps < cfg.TRAIN.BG_THRESH_LO)[0]
+
             keep_inds = np.append(fg_inds, bg_inds)
+            if(keep_inds.size < rois_per_image):
+                if keep_inds.size < 30:
+                    logger.debug(keep_inds.size)
+                extra_bg_inds = npr.choice(
+                    extra_bg_inds, size=(rois_per_image - keep_inds.size), replace=False)
+                keep_inds = np.append(keep_inds, extra_bg_inds)
 
             # Select sampled values from various arrays:
             current_labels = current_labels[keep_inds]

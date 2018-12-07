@@ -11,6 +11,10 @@ from .fastrcnn.bbox_transform import bbox_transform_inv, clip_boxes
 from .fastrcnn.nms_wrapper import nms
 from PIL import Image
 from torchvision import transforms
+import logging
+
+logger = logging.getLogger("root")
+logger.setLevel(logging.DEBUG)
 
 
 def nms_detections(pred_boxes, scores, nms_thresh, inds=None):
@@ -49,7 +53,7 @@ class RPN(nn.Module):
     """
 
     _feat_stride = [16, ]
-    anchor_scales = [4, 8, 16, 32]
+    anchor_scales = [2, 4, 8, 16, 32]
 
     def __init__(self):
         super(RPN, self).__init__()
@@ -303,7 +307,7 @@ class FastRCNN(nn.Module):
         pred_boxes = pred_boxes[0]
         if nms and pred_boxes.shape[0] > 0:
             pred_boxes, scores, inds = nms_detections(
-                pred_boxes, scores, 0.1, inds=inds)
+                pred_boxes, scores, 0.5, inds=inds)
         self.classes = np.array(self.classes)
         return pred_boxes, scores, self.classes[inds], boxes
 
@@ -317,7 +321,7 @@ class FastRCNN(nn.Module):
             self.interpret(
                 cls_prob, bbox_pred, rois, im_info, im_info[0][:2], min_score=thr, nms=True)
         return pred_boxes, scores, classes, rois, im_data
-    
+
     def detect_blob(self, im_data, im_info, thr=0.5):
         self.eval()
         cls_prob, bbox_pred, rois, _, _, _, _, _ = self(im_data, im_info[:, :2])
