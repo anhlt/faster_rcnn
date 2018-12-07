@@ -1,12 +1,7 @@
 import torch.utils.data as data
-from PIL import Image, ImageDraw
 import os
 import os.path
-import sys
-from torchvision import transforms
-import numpy as np
 from .voc.voc import VOCDetection
-import re
 try:
     from .voc.string_int_label_map_pb2 import StringIntLabelMap
 except Exception as e:
@@ -14,16 +9,14 @@ except Exception as e:
 
 from google.protobuf import text_format
 
+
 class VOCMerge(data.Dataset):
-    def __init__(self, root, image_set, dataset_name = 'merge_voc', general_transform=None, transform=None, target_transform=None, oversample=False, oversample_len=200):
+    def __init__(self, root, image_set, dataset_name='merge_voc', *args, **kwargs):
         self.root = root
         self.image_set = image_set
-        self.oversample = oversample
-        self.oversample_len = oversample_len
-        self.transform = transform
-        self.target_transform = target_transform
-        self.general_transform = general_transform
-        self._label_map_path = os.path.join(self.root, dataset_name, 'pascal_label_map.pbtxt')
+        self._label_map_path = os.path.join(
+            self.root, dataset_name, 'pascal_label_map.pbtxt')
+
         self.sub_class_dict = {}
 
         with open(self._label_map_path) as f:
@@ -43,17 +36,14 @@ class VOCMerge(data.Dataset):
             self.classes.append(item.name)
         self.label_map_dict = label_map_dict
 
-
         for sub_class in self.classes[1:]:
             self.sub_class_dict[sub_class] = VOCDetection(
-                os.path.join(root, dataset_name),sub_class + '_' + image_set,
-                general_transform=self.general_transform,
-                dataset_name=sub_class+ "_output",
-                oversample=self.oversample,
-                oversample_len=self.oversample_len)
-
+                os.path.join(root, dataset_name), sub_class + '_' + image_set,
+                dataset_name=sub_class + "_output",
+                *args, **kwargs)
             self.sub_class_dict[sub_class].label_map_dict = self.label_map_dict
-            self.sum_item.append(self.sum_item[-1] + len(self.sub_class_dict[sub_class]))
+            self.sum_item.append(
+                self.sum_item[-1] + len(self.sub_class_dict[sub_class]))
 
     def __getitem__(self, index):
 
@@ -66,8 +56,9 @@ class VOCMerge(data.Dataset):
             else:
                 return find(a, value, start, mid)
 
-        category, offset = find(self.sum_item, index+1, 0, len(self.sum_item) - 1)
-
+        category, offset = find(self.sum_item, index + 1,
+                                0, len(self.sum_item) - 1)
+        # logger.debug(category, offset)
         return self.sub_class_dict[self.classes[category]][offset]
 
     def __len__(self):

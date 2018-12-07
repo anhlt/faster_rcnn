@@ -10,7 +10,7 @@ import torch
 import logging
 
 logger = logging.getLogger("root")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 class ProposalTargetLayer(nn.Module):
@@ -98,13 +98,12 @@ class ProposalTargetLayer(nn.Module):
             extra_bg_inds = np.where(max_overlaps < cfg.TRAIN.BG_THRESH_LO)[0]
 
             keep_inds = np.append(fg_inds, bg_inds)
-            if(keep_inds.size < rois_per_image) :
+            if(keep_inds.size < rois_per_image):
                 if keep_inds.size < 30:
                     logger.debug(keep_inds.size)
                 extra_bg_inds = npr.choice(
                     extra_bg_inds, size=(rois_per_image - keep_inds.size), replace=False)
                 keep_inds = np.append(keep_inds, extra_bg_inds)
-
 
             # Select sampled values from various arrays:
             current_labels = current_labels[keep_inds]
