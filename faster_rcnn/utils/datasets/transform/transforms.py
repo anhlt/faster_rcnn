@@ -8,6 +8,7 @@ from . import functional as F
 __all__ = ["Compose", "RandomHorizontalFlip", "Resize"]
 
 
+
 class Compose(object):
     """Composes several transforms together.
     Args:

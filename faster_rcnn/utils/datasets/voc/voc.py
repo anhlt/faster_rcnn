@@ -99,6 +99,7 @@ class VOCDetection(data.Dataset):
         self.oversample_len = oversample_len
         self.read_img = read_img
 
+
         with open(self._label_map_path) as f:
             label_map_string = f.read()
             label_map = StringIntLabelMap()
@@ -146,7 +147,6 @@ class VOCDetection(data.Dataset):
 
         origin_size = (int(target.find('size').find('width').text),
                        int(target.find('size').find('height').text))
-
         def bboxs(target, origin_size):
             for obj in target.iter('object'):
                 name = obj.find('name').text

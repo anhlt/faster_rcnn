@@ -16,6 +16,7 @@ class VOCMerge(data.Dataset):
         self.image_set = image_set
         self._label_map_path = os.path.join(
             self.root, dataset_name, 'pascal_label_map.pbtxt')
+
         self.sub_class_dict = {}
 
         with open(self._label_map_path) as f:
@@ -40,7 +41,6 @@ class VOCMerge(data.Dataset):
                 os.path.join(root, dataset_name), sub_class + '_' + image_set,
                 dataset_name=sub_class + "_output",
                 *args, **kwargs)
-
             self.sub_class_dict[sub_class].label_map_dict = self.label_map_dict
             self.sum_item.append(
                 self.sum_item[-1] + len(self.sub_class_dict[sub_class]))
