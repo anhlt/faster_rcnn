@@ -71,7 +71,7 @@ class AnchorTargerLayer(nn.Module):
 
 
         """
-        
+
         # gt_boxes = gt_boxes.numpy()
         # im_info = im_info.numpy()
         # batch_boxes_index = batch_boxes_index.numpy()
@@ -347,6 +347,8 @@ class AnchorTargerLayer(nn.Module):
 
             # fg label: for each gt, anchor with highest overlap
             labels[i, gt_argmax_overlaps] = 1
+            labels[i, max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 1
+
             # fg label: above threshold IOU
 
 

@@ -1,12 +1,12 @@
 import numpy as np
 import torch
-
+from collections import defaultdict
 
 def convert_data(blobs):
     blobs = [i for i in blobs if i is not None]
     current_batch_size = len(blobs)
     if not current_batch_size:
-       return None 
+       return None
     max_height = np.max([blob['tensor'].shape[2] for blob in blobs])
     max_width = np.max([blob['tensor'].shape[3] for blob in blobs])
     batch_tensor = torch.Tensor(
@@ -29,3 +29,13 @@ def convert_data(blobs):
         img_name.append(blob['im_name'])
 
     return batch_tensor, im_info, batch_boxes, batch_boxes_index, img_name
+
+
+def convert_data_with_out_img(blobs):
+
+    dd = defaultdict(list)
+    for i, blob in enumerate(blobs):
+        for key, val in blob.iteritems():  # .items() in Python 3.
+            dd[key].append(val)
+
+    return dict(dd)

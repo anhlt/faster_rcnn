@@ -53,7 +53,7 @@ class RPN(nn.Module):
     """
 
     _feat_stride = [16, ]
-    anchor_scales = [4, 8, 16, 32]
+    anchor_scales = [2, 4, 8, 16, 32]
 
     def __init__(self):
         super(RPN, self).__init__()
@@ -307,7 +307,7 @@ class FastRCNN(nn.Module):
         pred_boxes = pred_boxes[0]
         if nms and pred_boxes.shape[0] > 0:
             pred_boxes, scores, inds = nms_detections(
-                pred_boxes, scores, 0.1, inds=inds)
+                pred_boxes, scores, 0.5, inds=inds)
         self.classes = np.array(self.classes)
         return pred_boxes, scores, self.classes[inds], boxes
 

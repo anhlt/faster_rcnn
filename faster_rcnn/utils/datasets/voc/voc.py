@@ -49,9 +49,12 @@ class VOCSegmentation(data.Dataset):
         self.target_transform = target_transform
 
         dataset_name = 'VOC2007'
-        self._annopath = os.path.join(self.root, dataset_name, 'SegmentationClass', '%s.png')
-        self._imgpath = os.path.join(self.root, dataset_name, 'JPEGImages', '%s.jpg')
-        self._imgsetpath = os.path.join(self.root, dataset_name, 'ImageSets', 'Segmentation', '%s.txt')
+        self._annopath = os.path.join(
+            self.root, dataset_name, 'SegmentationClass', '%s.png')
+        self._imgpath = os.path.join(
+            self.root, dataset_name, 'JPEGImages', '%s.jpg')
+        self._imgsetpath = os.path.join(
+            self.root, dataset_name, 'ImageSets', 'Segmentation', '%s.txt')
 
         with open(self._imgsetpath % self.image_set) as f:
             self.ids = f.readlines()
@@ -76,18 +79,25 @@ class VOCSegmentation(data.Dataset):
 
 
 class VOCDetection(data.Dataset):
-    def __init__(self, root, image_set, dataset_name = 'VOC2007', general_transform=None, transform=None, target_transform=None, oversample=False, oversample_len=100, seed=10):
+    def __init__(self, root, image_set,
+                 dataset_name='VOC2007', general_transform=None,
+                 transform=None, target_transform=None, oversample=False, oversample_len=100, read_img=True):
         self.root = root
         self.image_set = image_set
         self.target_transform = target_transform
-
-        self._annopath = os.path.join(self.root, dataset_name, 'Annotations', '%s.xml')
-        self._imgpath = os.path.join(self.root, dataset_name, 'JPEGImages', '%s.jpg')
-        self._imgsetpath = os.path.join(self.root, dataset_name, 'ImageSets', 'Main', '%s.txt')
-        self._label_map_path = os.path.join(self.root, dataset_name, 'pascal_label_map.pbtxt')
+        self.dataset_name = dataset_name
+        self._annopath = os.path.join(
+            self.root, dataset_name, 'Annotations', '%s.xml')
+        self._imgpath = os.path.join(
+            self.root, dataset_name, 'JPEGImages', '%s.jpg')
+        self._imgsetpath = os.path.join(
+            self.root, dataset_name, 'ImageSets', 'Main', '%s.txt')
+        self._label_map_path = os.path.join(
+            self.root, dataset_name, 'pascal_label_map.pbtxt')
         self.oversample = oversample
         self.general_transform = general_transform
         self.oversample_len = oversample_len
+        self.read_img = read_img
 
         with open(self._label_map_path) as f:
             label_map_string = f.read()
@@ -129,15 +139,13 @@ class VOCDetection(data.Dataset):
 
         try:
             target = ET.parse(self._annopath % img_id).getroot()
-            img = Image.open(self._imgpath % img_id).convert('RGB')
         except IOError as e:
             logger.debug(e)
+            logger.debug(self._annopath % img_id)
             return None
 
-        origin_size = img.size
-
-
-
+        origin_size = (int(target.find('size').find('width').text),
+                       int(target.find('size').find('height').text))
 
         def bboxs(target, origin_size):
             for obj in target.iter('object'):
@@ -145,12 +153,21 @@ class VOCDetection(data.Dataset):
                 bb = obj.find('bndbox')
                 bndbox = [float(bb.find('xmin').text), float(bb.find('ymin').text),
                           float(bb.find('xmax').text), float(bb.find('ymax').text)]
-                if 0. <= bndbox[0] < bndbox[2] <= origin_size[0] and 0. <= bndbox[1] < bndbox[3] <= origin_size[1] :
+
+                bndbox[0] = max(0, bndbox[0])
+                bndbox[1] = max(0, bndbox[1])
+                bndbox[2] = min(origin_size[0], bndbox[2])
+                bndbox[3] = min(origin_size[1], bndbox[3])
+
+                if 0. <= bndbox[0] < bndbox[2] <= origin_size[0] and 0. <= bndbox[1] < bndbox[3] <= origin_size[1]:
                     class_index = self.label_map_dict[name]
                     yield bndbox, class_index
+                else:
+                    print bndbox, origin_size, self._annopath % img_id
 
         try:
-            gt_boxes, gt_classes = zip(*[box for box in bboxs(target, origin_size)])
+            gt_boxes, gt_classes = zip(
+                *[box for box in bboxs(target, origin_size)])
             gt_boxes = np.array(gt_boxes, dtype=np.int32)
             gt_classes = np.array(gt_classes, dtype=np.int32)
         except ValueError as e:
@@ -160,28 +177,36 @@ class VOCDetection(data.Dataset):
             logger.debug(e)
             return None
 
-        if self.target_transform is not None:
-            target = self.target_transform(target)
+        if self.read_img:
+            if self.target_transform is not None:
+                target = self.target_transform(target)
 
-        tmp_img, tmp_gt_boxes = self.general_transform(img, gt_boxes)
-        blobs = {}
-        blobs['gt_classes'] = gt_classes
-        # blobs['boxes'] = gt_boxes * im_info[0][2]
-        # blobs['tensor'] = img
-        blobs['boxes'] = tmp_gt_boxes
-        blobs['tensor'] = self.transform(tmp_img).unsqueeze(0)
+            img = Image.open(self._imgpath % img_id).convert('RGB')
+            if self.general_transform:
+                img, gt_boxes = self.general_transform(img, gt_boxes)
+            blobs = {}
+            blobs['gt_classes'] = gt_classes
+            # blobs['boxes'] = gt_boxes * im_info[0][2]
+            # blobs['tensor'] = img
+            blobs['boxes'] = gt_boxes
+            blobs['tensor'] = self.transform(img).unsqueeze(0)
 
-        target_size = tuple(tmp_img.size)
-        im_info = np.array(
-            [[float(target_size[0]), float(target_size[1]), min(target_size) / min(origin_size)]])
+            target_size = tuple(img.size)
+            im_info = np.array(
+                [[float(target_size[0]), float(target_size[1]), min(target_size) / min(origin_size)]])
 
-        blobs['im_info'] = im_info
-        blobs['im_name'] = os.path.basename(self._imgpath % img_id)
+            blobs['im_info'] = im_info
+            blobs['im_name'] = os.path.basename(self._imgpath % img_id)
 
-        return blobs
+            return blobs
+        else:
+            blobs = {}
+            blobs['im_name'] = os.path.basename(self._imgpath % img_id)
+            blobs['origin_size'] = origin_size
+            return blobs
 
     def __len__(self):
-        if self.oversample :
+        if self.oversample:
             return max(self.oversample_len, len(self.ids))
         else:
             return len(self.ids)
@@ -193,6 +218,60 @@ class VOCDetection(data.Dataset):
             draw.rectangle(obj[0:4], outline=(255, 0, 0))
             draw.text(obj[0:2], obj[4], fill=(0, 255, 0))
         img.show()
+
+    def clean(self, commit=False, name=None):
+        annotation_dir = (os.path.join(
+            self.root, self.dataset_name, 'Annotations'))
+        img_dir = (os.path.join(self.root, self.dataset_name, 'JPEGImages'))
+        dataset_dir = os.path.join(
+            self.root, self.dataset_name, 'ImageSets', 'Main')
+        train_file = os.path.join(dataset_dir, "%s_train.txt" % name)
+        val_file = os.path.join(dataset_dir, "%s_val.txt" % name)
+
+        annotation_files = [file for file in os.listdir(annotation_dir)]
+        image_files = [file for file in os.listdir(img_dir)]
+
+        need_delete_files = []
+        retain_files = []
+
+        for file in annotation_files:
+            target = ET.parse(os.path.join(annotation_dir, file)).getroot()
+            file_name = target.find("filename").text
+            if not target.find('object'):
+                need_delete_files.append(os.path.join(annotation_dir, file))
+                need_delete_files.append(
+                    os.path.join(img_dir, "%s.jpg" % file_name))
+            elif not os.path.isfile(os.path.join(img_dir, "%s.jpg" % file_name)):
+                need_delete_files.append(os.path.join(annotation_dir, file))
+            else:
+                retain_files.append(file_name)
+
+        print "Need to delete: %d" % len(need_delete_files)
+        print "Retain: %d" % len(retain_files)
+        print "dataset_dir: %s" % dataset_dir
+
+        print "train_file: %s" % train_file
+        print "train_file: %s" % val_file
+        last_train_index = int(len(retain_files) / 5 * 4)
+        if commit:
+            for file in need_delete_files:
+                try:
+                    os.remove(file)
+                except OSError:
+                    print ("File %s Not Existed!" % file)
+        with open(train_file, 'w') as f:
+            for file_name in retain_files[:last_train_index]:
+                if commit:
+                    f.write("%s 1\n" % file_name)
+                else:
+                    print("%s 1\n" % file_name)
+
+        with open(val_file, 'w') as f:
+            for file_name in retain_files[last_train_index:]:
+                if commit:
+                    f.write("%s 1\n" % file_name)
+                else:
+                    print("%s 1\n" % file_name)
 
 
 if __name__ == '__main__':
