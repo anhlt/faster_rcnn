@@ -9,7 +9,7 @@ from ..network import np_to_tensor
 import torch
 import logging
 
-logger = logging.getLogger("root")
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 

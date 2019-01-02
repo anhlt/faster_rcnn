@@ -65,13 +65,13 @@ def result_show(inp, predicted_boxes=[], classes=[], scores=[], mapping_name=Non
         for i in range(3):
             draw.rectangle(
                 [left + i, top + i, right - i, bottom - i],
-                outline=(255, 255, 0))
+                outline=color)
         if top - label_size[1] >= 0:
             text_origin = np.array([left, top - label_size[1]])
         else:
             text_origin = np.array([left, top + 1])
         draw.rectangle(
-            [tuple(text_origin), tuple(text_origin + label_size)], fill=(255, 255, 0))
+            [tuple(text_origin), tuple(text_origin + label_size)], fill=(0, 0, 0))
         draw.text(text_origin, label, fill=color, font=font)
     del draw
     ax.imshow(image)
