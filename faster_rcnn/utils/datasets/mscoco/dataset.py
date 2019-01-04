@@ -42,12 +42,7 @@ class CocoData(CocoDetection):
         if transform is not None:
             self.transform = transform
         else:
-            self.transform = transforms.Compose([
-                transforms.Resize(600),
-                transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [
-                                     0.229, 0.224, 0.225])
-            ])
+            self.transform = lambda x: x
 
     @property
     def classes(self):

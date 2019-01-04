@@ -99,7 +99,6 @@ class VOCDetection(data.Dataset):
         self.oversample_len = oversample_len
         self.read_img = read_img
 
-
         with open(self._label_map_path) as f:
             label_map_string = f.read()
             label_map = StringIntLabelMap()
@@ -120,11 +119,7 @@ class VOCDetection(data.Dataset):
         if transform is not None:
             self.transform = transform
         else:
-            self.transform = transforms.Compose([
-                transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [
-                                     0.229, 0.224, 0.225])
-            ])
+            self.transform = lambda x: x
 
         with open(self._imgsetpath % self.image_set) as f:
             ids = f.readlines()
@@ -147,6 +142,7 @@ class VOCDetection(data.Dataset):
 
         origin_size = (int(target.find('size').find('width').text),
                        int(target.find('size').find('height').text))
+
         def bboxs(target, origin_size):
             for obj in target.iter('object'):
                 name = obj.find('name').text
@@ -182,14 +178,15 @@ class VOCDetection(data.Dataset):
                 target = self.target_transform(target)
 
             img = Image.open(self._imgpath % img_id).convert('RGB')
-            if self.general_transform:
+            if self.general_transform is not None:
                 img, gt_boxes = self.general_transform(img, gt_boxes)
+
             blobs = {}
             blobs['gt_classes'] = gt_classes
             # blobs['boxes'] = gt_boxes * im_info[0][2]
             # blobs['tensor'] = img
             blobs['boxes'] = gt_boxes
-            blobs['tensor'] = self.transform(img).unsqueeze(0)
+            blobs['tensor'] = self.transform(img)
 
             target_size = tuple(img.size)
             im_info = np.array(
@@ -197,6 +194,7 @@ class VOCDetection(data.Dataset):
 
             blobs['im_info'] = im_info
             blobs['im_name'] = os.path.basename(self._imgpath % img_id)
+            blobs['full_im_path'] = self._imgpath % img_id
 
             return blobs
         else:
@@ -247,8 +245,8 @@ class VOCDetection(data.Dataset):
 
             if not os.path.isfile(os.path.join(img_dir, "%s.jpg" % file_name)):
                 print('Image not existed')
-                need_delete_files.append(os.path.join(annotation_dir, file))    
-                
+                need_delete_files.append(os.path.join(annotation_dir, file))
+
         print "Need to delete: %d" % len(need_delete_files)
         print "Retain: %d" % len(retain_files)
         print "dataset_dir: %s" % dataset_dir

@@ -38,11 +38,7 @@ class SingleOpenImage(data.Dataset):
         if transform is not None:
             self.transform = transform
         else:
-            self.transform = transforms.Compose([
-                transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [
-                                     0.229, 0.224, 0.225])
-            ])
+            self.transform = lambda x: x
 
         for label in self.labels:
             with open(os.path.join(self.label_dir, label)) as f:
@@ -80,7 +76,7 @@ class SingleOpenImage(data.Dataset):
         blobs = {}
         blobs['gt_classes'] = gt_classes
         blobs['boxes'] = gt_boxes
-        blobs['tensor'] = self.transform(img).unsqueeze(0)
+        blobs['tensor'] = self.transform(img)
 
         target_size = tuple(img.size)
         im_info = np.array(
