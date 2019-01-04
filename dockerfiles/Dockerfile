@@ -1,4 +1,4 @@
-FROM nvidia/cuda:9.0-devel-ubuntu16.04 
+FROM nvidia/cuda:9.0-cudnn7-devel
 
 RUN echo "deb http://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1604/x86_64 /" > /etc/apt/sources.list.d/nvidia-ml.list
 
