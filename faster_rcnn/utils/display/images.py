@@ -33,7 +33,7 @@ def imshow(inp, gt_boxes=[], predict_boxes=[], random=False):
     plt.pause(0.001)  # pause a bit so that plots are updated
 
 
-def result_show(inp, predicted_boxes=[], classes=[], scores=[]):
+def result_show(inp, predicted_boxes=[], classes=[], scores=[], mapping_name=None):
     font = ImageFont.truetype(
         font=cfg.FONT_PATH, size=np.floor(3e-2 * 600 + 0.5).astype('int32'))
 
@@ -51,23 +51,27 @@ def result_show(inp, predicted_boxes=[], classes=[], scores=[]):
 
     draw = ImageDraw.Draw(image)
     for predicted_box, predicted_class, score in zip(predicted_boxes, classes, scores):
-        label = '{} {:.2f}'.format(predicted_class, score)
+        if not mapping_name:
+            label = '{} {:.2f}'.format(predicted_class, score)
+        else:
+            label = u"{} {:.2f}".format(mapping_name[int(predicted_class)].decode('utf-8'), score)
 
         label_size = draw.textsize(label, font)
 
         left, top, right, bottom = predicted_box
         print(predicted_class, (left, top), (right, bottom))
 
+        color = tuple(np.random.randint(255, size=3))
         for i in range(3):
             draw.rectangle(
                 [left + i, top + i, right - i, bottom - i],
-                outline=(255, 255, 0))
+                outline=color)
         if top - label_size[1] >= 0:
             text_origin = np.array([left, top - label_size[1]])
         else:
             text_origin = np.array([left, top + 1])
         draw.rectangle(
-            [tuple(text_origin), tuple(text_origin + label_size)])
-        draw.text(text_origin, label, fill=(100, 100, 255), font=font)
+            [tuple(text_origin), tuple(text_origin + label_size)], fill=(0, 0, 0))
+        draw.text(text_origin, label, fill=color, font=font)
     del draw
     ax.imshow(image)

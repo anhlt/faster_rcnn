@@ -11,6 +11,10 @@ from .fastrcnn.bbox_transform import bbox_transform_inv, clip_boxes
 from .fastrcnn.nms_wrapper import nms
 from PIL import Image
 from torchvision import transforms
+import logging
+
+logger = logging.getLogger("root")
+logger.setLevel(logging.DEBUG)
 
 
 def nms_detections(pred_boxes, scores, nms_thresh, inds=None):
@@ -284,7 +288,6 @@ class FastRCNN(nn.Module):
         # find class
         scores, inds = cls_prob.data.max(1)
         scores, inds = scores.cpu().numpy(), inds.cpu().numpy()
-
         keep = np.where((inds > 0) & (scores >= min_score))
         scores, inds = scores[keep], inds[keep]
 
@@ -295,6 +298,8 @@ class FastRCNN(nn.Module):
             box_deltas[i, (inds[i] * 4): (inds[i] * 4 + 4)] for i in range(len(inds))
         ], dtype=np.float)
         boxes = rois.data.cpu().numpy()[keep, 1:5]
+        if len(boxes) == 0:
+            return np.array([]), np.array([]),np.array([]),np.array([])
         pred_boxes = bbox_transform_inv(
             boxes[np.newaxis, :], box_deltas[np.newaxis, :])
         if clip:
@@ -302,13 +307,23 @@ class FastRCNN(nn.Module):
         pred_boxes = pred_boxes[0]
         if nms and pred_boxes.shape[0] > 0:
             pred_boxes, scores, inds = nms_detections(
-                pred_boxes, scores, 0.1, inds=inds)
+                pred_boxes, scores, 0.2, inds=inds)
         self.classes = np.array(self.classes)
         return pred_boxes, scores, self.classes[inds], boxes
 
     def detect(self, image, thr=0.5):
         self.eval()
         im_data, im_info = self.get_image_blob(image)
+        cls_prob, bbox_pred, rois, _, _, _, _, _ = self(im_data, im_info[:, :2])
+        cls_prob = cls_prob.squeeze()
+        bbox_pred = bbox_pred.squeeze()
+        pred_boxes, scores, classes, rois = \
+            self.interpret(
+                cls_prob, bbox_pred, rois, im_info, im_info[0][:2], min_score=thr, nms=True)
+        return pred_boxes, scores, classes, rois, im_data
+
+    def detect_blob(self, im_data, im_info, thr=0.5):
+        self.eval()
         cls_prob, bbox_pred, rois, _, _, _, _, _ = self(im_data, im_info[:, :2])
         cls_prob = cls_prob.squeeze()
         bbox_pred = bbox_pred.squeeze()

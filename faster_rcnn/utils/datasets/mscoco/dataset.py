@@ -42,12 +42,7 @@ class CocoData(CocoDetection):
         if transform is not None:
             self.transform = transform
         else:
-            self.transform = transforms.Compose([
-                transforms.Resize(600),
-                transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [
-                                     0.229, 0.224, 0.225])
-            ])
+            self.transform = lambda x: x
 
     @property
     def classes(self):
@@ -124,4 +119,5 @@ class CocoData(CocoDetection):
         blobs['gt_classes'] = torch.from_numpy(gt_classes)
         blobs['boxes'] = torch.from_numpy(gt_boxes * im_info[0][2])
         blobs['im_info'] = torch.from_numpy(np.array(im_info, dtype=np.float32))
+        blobs['im_name'] = image_info['file_name']
         return blobs

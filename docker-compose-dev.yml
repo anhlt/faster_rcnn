@@ -1,0 +1,27 @@
+version: '2'
+services:
+    python:
+        build:
+            context: .
+            dockerfile: ./dockerfiles/Dockerfile-cpu
+        container_name : faster_rcnn 
+        image: "tuananhbk/mlpractice:cpu" 
+        ports:
+            - "8889:8889"
+        volumes:
+            - ".:/data"
+        shm_size: '10gb'
+        user: anh
+        working_dir: /data
+        tty: true
+        command: jupyter notebook --ip=0.0.0.0 --port=8889 --NotebookApp.password='sha1:4018b457b8a9:84c65a176a549c58609c3cf38fa50b4b1b12b808'
+    anaconda:
+        image: "tuananhbk/mlpractice:cpu" 
+        ports:
+            - "19361:19361"
+        volumes:
+            - /Users/anhlt/Library/Application Support/Sublime Text 3/Packages/Anaconda:/opt/anaconda
+            - "./faster_rcnn:/data/faster_rcnn" 
+        user: root
+        entrypoint: /opt/anaconda/anaconda_server/docker/start python 19361 docker /opt/anaconda
+        tty: true
