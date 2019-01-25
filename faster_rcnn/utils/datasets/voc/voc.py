@@ -239,7 +239,6 @@ class VOCDetection(data.Dataset):
                 need_delete_files.append(os.path.join(annotation_dir, file))
                 need_delete_files.append(
                     os.path.join(img_dir, "%s.jpg" % file_name))
-
             else:
                 retain_files.append(file_name)
 

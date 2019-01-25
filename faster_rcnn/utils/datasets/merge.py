@@ -16,7 +16,6 @@ class VOCMerge(data.Dataset):
         self.image_set = image_set
         self._label_map_path = os.path.join(
             self.root, dataset_name, 'pascal_label_map.pbtxt')
-
         self.sub_class_dict = {}
 
         with open(self._label_map_path) as f:

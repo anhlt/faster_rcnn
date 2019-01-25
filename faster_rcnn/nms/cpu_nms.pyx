@@ -14,19 +14,20 @@ cdef inline np.float32_t max(np.float32_t a, np.float32_t b):
 cdef inline np.float32_t min(np.float32_t a, np.float32_t b):
     return a if a <= b else b
 
-def cpu_nms(np.ndarray[np.float32_t, ndim=2] dets, np.float thresh):
-    cdef np.ndarray[np.float32_t, ndim=1] x1 = dets[:, 0]
-    cdef np.ndarray[np.float32_t, ndim=1] y1 = dets[:, 1]
-    cdef np.ndarray[np.float32_t, ndim=1] x2 = dets[:, 2]
-    cdef np.ndarray[np.float32_t, ndim=1] y2 = dets[:, 3]
-    cdef np.ndarray[np.float32_t, ndim=1] scores = dets[:, 4]
 
-    cdef np.ndarray[np.float32_t, ndim=1] areas = (x2 - x1 + 1) * (y2 - y1 + 1)
-    cdef np.ndarray[np.int_t, ndim=1] order = scores.argsort()[::-1]
+def cpu_nms(np.ndarray[np.float32_t, ndim=2] dets, np.float thresh):
+    cdef np.ndarray[np.float32_t, ndim = 1] x1 = dets[:, 0]
+    cdef np.ndarray[np.float32_t, ndim = 1] y1 = dets[:, 1]
+    cdef np.ndarray[np.float32_t, ndim = 1] x2 = dets[:, 2]
+    cdef np.ndarray[np.float32_t, ndim = 1] y2 = dets[:, 3]
+    cdef np.ndarray[np.float32_t, ndim = 1] scores = dets[:, 4]
+
+    cdef np.ndarray[np.float32_t, ndim = 1] areas = (x2 - x1 + 1) * (y2 - y1 + 1)
+    cdef np.ndarray[np.int_t, ndim = 1] order = scores.argsort()[::-1]
 
     cdef int ndets = dets.shape[0]
-    cdef np.ndarray[np.int_t, ndim=1] suppressed = \
-            np.zeros((ndets), dtype=np.int)
+    cdef np.ndarray[np.int_t, ndim = 1] suppressed = \
+        np.zeros((ndets), dtype=np.int)
 
     # nominal indices
     cdef int _i, _j
