@@ -3,9 +3,19 @@ import random
 import numpy as np
 from PIL import Image
 from . import functional as F
+from collections import Iterable
 
 
 __all__ = ["Compose", "RandomHorizontalFlip", "Resize"]
+
+
+
+_pil_interpolation_to_str = {
+    Image.NEAREST: 'PIL.Image.NEAREST',
+    Image.BILINEAR: 'PIL.Image.BILINEAR',
+    Image.BICUBIC: 'PIL.Image.BICUBIC',
+    Image.LANCZOS: 'PIL.Image.LANCZOS',
+}
 
 
 class Compose(object):
@@ -35,6 +45,7 @@ class Compose(object):
         format_string += '\n)'
         return format_string
 
+
 class Resize(object):
     """Resize the input PIL Image to the given size.
     Args:
@@ -48,7 +59,8 @@ class Resize(object):
     """
 
     def __init__(self, size, interpolation=Image.BILINEAR):
-        assert isinstance(size, int) or (isinstance(size, Iterable) and len(size) == 2)
+        assert isinstance(size, int) or (
+            isinstance(size, Iterable) and len(size) == 2)
         self.size = size
         self.interpolation = interpolation
 
@@ -68,6 +80,7 @@ class Resize(object):
         interpolate_str = _pil_interpolation_to_str[self.interpolation]
         return self.__class__.__name__ + '(size={0}, interpolation={1})'.format(self.size, interpolate_str)
 
+
 class RandomHorizontalFlip(object):
     """Horizontally flip the given PIL Image randomly with a given probability.
     Args:
@@ -78,18 +91,18 @@ class RandomHorizontalFlip(object):
         self.p = p
 
     def __call__(self, img, bboxes):
-            img_center = np.array(img.size) / 2
-            img_center = np.hstack((img_center, img_center)).astype(np.int32)
-            if random.random() < self.p:
-                img =  F.hflip(img)
-                bboxes[:,[0,2]] += 2*(img_center[[0,2]] - bboxes[:,[0,2]])
+        img_center = np.array(img.size) / 2
+        img_center = np.hstack((img_center, img_center)).astype(np.int32)
+        if random.random() < self.p:
+            img = F.hflip(img)
+            bboxes[:, [0, 2]] += 2 * (img_center[[0, 2]] - bboxes[:, [0, 2]])
 
-                box_w = abs(bboxes[:,0] - bboxes[:,2])
+            box_w = abs(bboxes[:, 0] - bboxes[:, 2])
 
-                bboxes[:,0] -= box_w
-                bboxes[:,2] += box_w
+            bboxes[:, 0] -= box_w
+            bboxes[:, 2] += box_w
 
-            return img, bboxes
+        return img, bboxes
 
     def __repr__(self):
         return self.__class__.__name__ + '(p={})'.format(self.p)
