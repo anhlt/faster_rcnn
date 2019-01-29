@@ -5,7 +5,7 @@ import numpy as np
 from .rpn_msr.proposal_layer import ProposalLayer
 from .rpn_msr.anchor_target_layer import AnchorTargerLayer
 from rpn_msr.proposal_target_layer import ProposalTargetLayer
-from .network import vgg16, Conv2d, np_to_tensor, FC, smooth_l1_loss
+from .network import vgg16, Conv2d, FC, smooth_l1_loss
 from roi_pooling.modules.roi_pool import RoIPool
 from .fastrcnn.bbox_transform import bbox_transform_inv, clip_boxes
 from .fastrcnn.nms_wrapper import nms
@@ -299,7 +299,7 @@ class FastRCNN(nn.Module):
         ], dtype=np.float)
         boxes = rois.data.cpu().numpy()[keep, 1:5]
         if len(boxes) == 0:
-            return np.array([]), np.array([]),np.array([]),np.array([])
+            return np.array([]), np.array([]), np.array([]), np.array([])
         pred_boxes = bbox_transform_inv(
             boxes[np.newaxis, :], box_deltas[np.newaxis, :])
         if clip:
