@@ -263,7 +263,7 @@ class FastRCNN(nn.Module):
         x = self.fc7(x)
         x = F.dropout(x, training=self.training)
         cls_score = self.score_fc(x)
-        cls_prob = F.softmax(cls_score)
+        cls_prob = F.softmax(cls_score, dim=1)
         bbox_pred = self.bbox_fc(x)
 
         return cls_prob, bbox_pred, rois, cls_score, target, rpn_cls_prob_reshape, rpn_bbox_pred, rpn_target
