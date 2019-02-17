@@ -44,3 +44,4 @@ ADD ./requirements.txt /tmp/requirements.txt
 WORKDIR /tmp/
 RUN pip install requests
 RUN pip install -r requirements.txt
+RUN pip install python-language-server[all]

@@ -266,7 +266,7 @@ class FastRCNN(nn.Module):
         cls_prob = F.softmax(cls_score, dim=1)
         bbox_pred = self.bbox_fc(x)
 
-        return cls_prob, bbox_pred, rois, cls_score, target, rpn_cls_prob_reshape, rpn_bbox_pred, rpn_target
+        return cls_prob, bbox_pred, rois, cls_score, target, rpn_cls_prob_reshape, rpn_bbox_pred, rpn_target, x
 
     @staticmethod
     def build_loss(cls_score, bbox_pred, target):
@@ -284,7 +284,7 @@ class FastRCNN(nn.Module):
             bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights, dim=[1])
         return cross_entropy, loss_box
 
-    def interpret(self, cls_prob, bbox_pred, rois, im_info, im_shape, nms=True, clip=True, min_score=0.0):
+    def interpret(self, cls_prob, bbox_pred, rois, im_info, im_shape, nms=True, clip=True, min_score=0.5):
         # find class
         scores, inds = cls_prob.data.max(1)
         scores, inds = scores.cpu().numpy(), inds.cpu().numpy()
